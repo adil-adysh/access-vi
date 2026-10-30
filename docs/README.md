@@ -8,6 +8,7 @@ This directory is the source of truth for research intent, testable claims and c
 
 ## Reading order
 
+0. **[13 — Governing research strategy: faithful access, validation, audio-first optimization](13-faithful-access-to-audio-first-research-strategy.md): start here for priorities, information-fidelity gates and rules separating optimization from original information.**
 1. [00 — Research history and existing findings](00-research-history.md): where the idea came from; what is known versus proposed.
 2. [01 — Problem statement and scope](01-problem-and-vision.md): research problem and MVP boundaries.
 3. [02 — Research foundations](02-research-foundations.md): prior literature, what it demonstrates, and potential contribution.
@@ -30,7 +31,8 @@ This directory is the source of truth for research intent, testable claims and c
 - **Sonification:** mapping data or structure to non-speech sound.
 - **Spatialization:** varying perceived sound position, initially stereo left/center/right.
 - **Mental model:** participant's inferred representation of the graph, operationalized through tasks such as edge reconstruction and transfer.
-- **Baseline:** speech-only interactive access with the same graph semantics and navigation controls.
+- **Baseline (legacy study):** speech-only interactive access with the same graph semantics and navigation controls.
+- **Faithful reference (new program):** independently explorable, source-complete representation for explicitly supported source properties; not necessarily identical to speech-only.
 
 ## Evidence labels used throughout
 
@@ -39,6 +41,10 @@ This directory is the source of truth for research intent, testable claims and c
 - **Proposed:** an engineering or methodological decision awaiting validation.
 - **Unknown:** not yet measured, verified or decided.
 - **Observed locally:** requires date, environment, procedure, and a saved test artifact before claiming it.
+
+## Governing research strategy
+
+**Accepted:** [Faithful access first, then evidence-led audio-first optimization](13-faithful-access-to-audio-first-research-strategy.md). Stage 1 builds complete, independently explorable access for the supported source features; Stage 2 validates fidelity and comprehension; Stage 3 tests optional audio-first enhancements while retaining the faithful reference. The stages are **not** the prototype's existing A/B/C experiment conditions. No complete-access or efficacy outcome is yet claimed.
 
 ## Governing design rules
 
