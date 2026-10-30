@@ -1,5 +1,7 @@
 # Research questions, hypotheses and operational definitions
 
+**Scope:** These are questions for the **existing legacy A/B/C comparison**. They do not supersede the accepted [program strategy](13-faithful-access-to-audio-first-research-strategy.md), which defines: (1) source information coverage/fidelity, (2) correct interpretation, (3) mental-model/reasoning fidelity, and (4) empirical benefit of optional audio-first optimization. A/B/C are experimental conditions, not program stages. Legacy trials and data must not be reinterpreted retroactively.
+
 **Status:** preregistration **draft**, not a registered study. Hypotheses and analytic decisions must be locked *before* confirmatory recruitment.
 
 ## Conditions
