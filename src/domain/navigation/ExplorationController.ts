@@ -25,6 +25,7 @@ export class ExplorationController {
   private currentNodeId: string;
   private startNodeId: string;
   private history: string[] = [];
+  private visitedNodes: Set<string> = new Set();
   private direction: NavigationDirection = 'outgoing';
   private selectedNeighborIndex: number = 0;
   private playbackState: PlaybackState = 'idle';
@@ -61,6 +62,7 @@ export class ExplorationController {
       this.currentNodeId = '';
     }
 
+    if (this.startNodeId) { this.visitedNodes.add(this.startNodeId); }
     this.updateInspection();
   }
 
@@ -70,6 +72,7 @@ export class ExplorationController {
       currentNodeId: this.currentNodeId,
       startNodeId: this.startNodeId,
       history: [...this.history],
+      visitedNodeIds: Array.from(this.visitedNodes),
       direction: this.direction,
       selectedNeighborIndex: this.selectedNeighborIndex,
       playbackState: this.playbackState,
@@ -100,6 +103,7 @@ export class ExplorationController {
     this.startNodeId = startNodeId && graph.hasNode(startNodeId) ? startNodeId : nodeIds[0];
     this.currentNodeId = this.startNodeId;
     this.history = [];
+    this.visitedNodes = new Set([this.startNodeId]);
     this.direction = 'outgoing';
     this.selectedNeighborIndex = 0;
     this.playbackState = 'idle';
@@ -216,6 +220,7 @@ export class ExplorationController {
     const previousNode = this.currentNodeId;
     this.history.push(previousNode);
     this.currentNodeId = target;
+    this.visitedNodes.add(target);
     this.selectedNeighborIndex = 0;
     this.updateInspection();
 
@@ -242,6 +247,7 @@ export class ExplorationController {
     const previous = this.history.pop()!;
     const fromNode = this.currentNodeId;
     this.currentNodeId = previous;
+    this.visitedNodes.add(previous);
     this.selectedNeighborIndex = 0;
     this.updateInspection();
 
@@ -262,6 +268,7 @@ export class ExplorationController {
     const fromNode = this.currentNodeId;
     this.history.push(fromNode);
     this.currentNodeId = this.startNodeId;
+    this.visitedNodes.add(this.startNodeId);
     this.selectedNeighborIndex = 0;
     this.updateInspection();
 
@@ -287,6 +294,7 @@ export class ExplorationController {
     const fromNode = this.currentNodeId;
     this.history.push(fromNode);
     this.currentNodeId = nodeId;
+    this.visitedNodes.add(nodeId);
     this.selectedNeighborIndex = 0;
     this.updateInspection();
 
@@ -336,6 +344,15 @@ export class ExplorationController {
    * Dispatches keyboard key presses to navigation commands.
    * Returns true if key was handled.
    */
+
+  public getVisitedNodes(): ReadonlySet<string> {
+    return this.visitedNodes;
+  }
+
+  public getWeaklyConnectedComponents(): string[][] {
+    return this.graph.getWeaklyConnectedComponents();
+  }
+
   public handleKeyboardCommand(key: string, ctrl: boolean = false, alt: boolean = false): boolean {
     if (ctrl || alt) return false;
 

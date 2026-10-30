@@ -83,6 +83,7 @@ export interface NavigationState {
   readonly currentNodeId: string;
   readonly startNodeId: string;
   readonly history: string[];
+  readonly visitedNodeIds: readonly string[];
   readonly direction: NavigationDirection;
   readonly selectedNeighborIndex: number;
   readonly playbackState: PlaybackState;

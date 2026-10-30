@@ -98,7 +98,7 @@
 
       <div class="modal-body">
         <p class="intro-text">
-          Auditory Graph Explorer is designed for NVDA-compatible keyboard-first exploration. Focus the exploration panel and use the shortcuts below:
+          Access-VI is designed for NVDA-compatible keyboard-first exploration. Focus the exploration panel and use the shortcuts below:
         </p>
 
         <table class="shortcuts-table">
@@ -120,8 +120,24 @@
           </tbody>
         </table>
 
+        <!-- Visual-Auditory Parity Sound Legend -->
         <div class="experimental-notes">
-          <h3>Experimental Conditions</h3>
+          <h3>Visual-Auditory Semantic Parity</h3>
+          <p class="note-intro">
+            Governing Rule: Non-speech audio represents non-text visual shapes and relationship directions, while all node text and edge descriptions belong exclusively to the screen reader.
+          </p>
+          <ul>
+            <li><strong>Circle Shape:</strong> Sine wave tone at 300 Hz (smooth, pure tone).</li>
+            <li><strong>Rectangle Shape:</strong> Triangle wave tone at 300 Hz (mellow harmonic timbre).</li>
+            <li><strong>Diamond Shape:</strong> Softened square wave tone at 300 Hz (rich buzzy timbre).</li>
+            <li><strong>Outgoing Direction:</strong> Upward two-tone interval (360 → 440 Hz).</li>
+            <li><strong>Incoming Direction:</strong> Downward two-tone interval (440 → 360 Hz).</li>
+            <li><strong>Disconnected Graphs:</strong> A warning and jump buttons appear when disconnected components exist.</li>
+          </ul>
+        </div>
+
+        <div class="experimental-notes">
+          <h3>Experimental Study Conditions</h3>
           <ul>
             <li><strong>Condition A (Speech-Only):</strong> Structural information provided sequentially via spoken announcements.</li>
             <li><strong>Condition B (Non-Spatial):</strong> Distinguishable node tones and transition sounds with centered panning.</li>
@@ -173,18 +189,27 @@
 
   .modal-header h2 {
     font-size: 18px;
+    margin: 0;
   }
 
   .close-btn {
     background: transparent;
     border: none;
+    color: var(--color-text-muted);
     font-size: 18px;
+    cursor: pointer;
     padding: 4px 8px;
+  }
+
+  .close-btn:hover {
+    color: #ffffff;
   }
 
   .modal-body {
     padding: 20px;
     overflow-y: auto;
+    font-size: 14px;
+    line-height: 1.5;
   }
 
   .intro-text {
@@ -195,51 +220,62 @@
   .shortcuts-table {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 20px;
+    margin-bottom: 24px;
   }
 
-  .shortcuts-table th, .shortcuts-table td {
+  .shortcuts-table th,
+  .shortcuts-table td {
     padding: 8px 12px;
-    border-bottom: 1px solid var(--color-border);
     text-align: left;
-    font-size: 14px;
+    border-bottom: 1px solid var(--color-border);
   }
 
   .shortcuts-table th {
-    background: rgba(0, 0, 0, 0.2);
+    background: #0f172a;
     color: var(--color-primary);
   }
 
   kbd {
     background: #0f172a;
-    border: 1px solid var(--color-border);
+    border: 1px solid #475569;
     border-radius: 4px;
     padding: 2px 6px;
-    font-family: var(--font-mono);
     font-size: 12px;
-  }
-
-  .experimental-notes {
-    background: rgba(0, 0, 0, 0.2);
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-    padding: 12px 16px;
-  }
-
-  .experimental-notes h3 {
-    font-size: 14px;
-    margin-bottom: 8px;
+    font-family: monospace;
     color: var(--color-primary);
   }
 
-  .experimental-notes ul {
-    padding-left: 20px;
+  .experimental-notes {
+    background: #0f172a;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin-top: 14px;
+  }
+
+  .experimental-notes h3 {
+    font-size: 15px;
+    margin: 0 0 8px 0;
+    color: var(--color-primary);
+  }
+
+  .note-intro {
     font-size: 13px;
-    color: var(--color-text-muted);
+    color: #94a3b8;
+    margin-bottom: 8px;
+  }
+
+  .experimental-notes ul {
+    margin: 0;
+    padding-left: 20px;
   }
 
   .experimental-notes li {
-    margin-bottom: 4px;
+    margin-bottom: 6px;
+  }
+
+  .experimental-notes li:last-child {
+    margin-bottom: 0;
   }
 
   .modal-footer {
