@@ -8,7 +8,8 @@ This directory is the source of truth for research intent, testable claims and c
 
 ## Reading order
 
-0. **[13 — Governing research strategy: faithful access, validation, audio-first optimization](13-faithful-access-to-audio-first-research-strategy.md): start here for priorities, information-fidelity gates and rules separating optimization from original information.**
+**Start here:** [13 — Governing research strategy: faithful access, validation, audio-first optimization](13-faithful-access-to-audio-first-research-strategy.md) sets priorities, evidence gates, and the distinction between source fidelity and later optimizations.
+
 1. [00 — Research history and existing findings](00-research-history.md): where the idea came from; what is known versus proposed.
 2. [01 — Problem statement and scope](01-problem-and-vision.md): research problem and MVP boundaries.
 3. [02 — Research foundations](02-research-foundations.md): prior literature, what it demonstrates, and potential contribution.
@@ -22,7 +23,8 @@ This directory is the source of truth for research intent, testable claims and c
 11. [10 — Spatial mental models and auditory graph geometry](10-spatial-mental-models-and-graph-geometry.md): research evidence, stable auditory maps, hypotheses, and staged evaluation.
 12. [11 — Governing visual–auditory parity and screen-reader text](11-visual-auditory-parity-governing-rules.md): mandatory rules for matching non-text visual distinctions with sounds and assigning all graph text to NVDA.
 13. [12 — Perceptual mapping and auditory Gestalt](12-perceptual-mapping-and-auditory-gestalt.md): research-informed visual-to-sound mappings, first-person observations, testable hypotheses and verification criteria.
-14. [References](references.md): cited papers, standards and official APIs with links.
+14. [13 — Governing research strategy](13-faithful-access-to-audio-first-research-strategy.md): full specification of program stages, acceptance gates and priorities.
+15. [References](references.md): cited papers, standards and official APIs with links.
 
 ## Terminology
 
