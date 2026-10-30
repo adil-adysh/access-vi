@@ -20,6 +20,32 @@ test.describe('Auditory Graph Explorer E2E & Accessibility', () => {
     expect(accessibilityScanResults.violations).toEqual([]);
   });
 
+  test('retains complete accessible textual structure and cycle metrics in free exploration mode', async ({ page }) => {
+    await page.goto('/');
+
+    // Free exploration mode must expose the complete textual structure table
+    await expect(page.locator('.textual-structure')).toBeVisible();
+    await expect(page.locator('.graph-table')).toBeVisible();
+    await expect(page.locator('.graph-table tbody tr')).toHaveCount(5); // 5 nodes in sandbox
+
+    // Free exploration mode must expose global metrics including cycle status
+    await expect(page.locator('.metrics-badge-row .badge', { hasText: /Cycles|Acyclic/i })).toBeVisible();
+
+    // Verify sample graphs in Import modal do NOT leak research study graphs
+    await page.getByRole('button', { name: /Import/i }).click();
+    await expect(page.locator('#import-title')).toBeVisible();
+
+    const sampleButtons = page.locator('.sample-btn');
+    const buttonTexts = await sampleButtons.allTextContents();
+    expect(buttonTexts.length).toBeGreaterThanOrEqual(3);
+    for (const text of buttonTexts) {
+      expect(text.toLowerCase()).not.toContain('study graph');
+      expect(text.toLowerCase()).not.toContain('transfer');
+      expect(text).toContain('Playground');
+    }
+    await page.keyboard.press('Escape');
+  });
+
   test('navigates graph with keyboard controls only when workspace is focused', async ({ page }) => {
     await page.goto('/');
 
@@ -92,7 +118,7 @@ test.describe('Auditory Graph Explorer E2E & Accessibility', () => {
     await expect(page.locator('.node-id-display')).toContainText('Node A');
   });
 
-  test('prevents experimental answer leakage during active trials', async ({ page }) => {
+  test('prevents experimental answer leakage during active trials using actual DOM selectors', async ({ page }) => {
     await page.goto('/');
 
     // Switch to Research Experiment tab
@@ -125,11 +151,12 @@ test.describe('Auditory Graph Explorer E2E & Accessibility', () => {
     expect(explorerAria?.toLowerCase()).not.toContain('diamond');
     expect(explorerAria).toContain('Study');
 
-    // 2. Full adjacency table must NOT be rendered in experimental trials
-    await expect(page.locator('.adjacency-table')).toHaveCount(0);
+    // 2. Full textual adjacency structure table must NOT exist in the DOM during trials
+    await expect(page.locator('.textual-structure')).toHaveCount(0);
+    await expect(page.locator('.graph-table')).toHaveCount(0);
 
-    // 3. Global cycle count / DAG badges must NOT be rendered in experimental trials
-    await expect(page.locator('.metric-badge', { hasText: /cycle/i })).toHaveCount(0);
+    // 3. Global cycle count / DAG badges must NOT exist in the DOM during trials
+    await expect(page.locator('.metrics-badge-row .badge', { hasText: /Cycles|Acyclic/i })).toHaveCount(0);
 
     // 4. Inspection is on-demand for current node only
     const inspectBtn = page.getByRole('button', { name: /Inspect Node/i });
@@ -146,7 +173,35 @@ test.describe('Auditory Graph Explorer E2E & Accessibility', () => {
     await expect(page.locator('.explorer-panel')).toHaveCount(0);
   });
 
-  test('walks through research experiment workflow and submits raw NASA-TLX', async ({ page }) => {
+  test('handles trial interruption when switching tabs and allows resuming', async ({ page }) => {
+    await page.goto('/');
+
+    // Go to experiment and start trial
+    await page.getByRole('button', { name: 'Research Experiment' }).click();
+    await page.getByRole('button', { name: /I Understand & Acknowledge Consent/i }).click();
+    await page.getByRole('button', { name: /Confirm Audio & Proceed to Training/i }).click();
+    await page.getByRole('button', { name: /I Am Ready to Begin Experimental Trials/i }).click();
+    await page.getByRole('button', { name: /Start Graph Exploration/i }).click();
+
+    // Now switch away to Settings tab
+    await page.getByRole('button', { name: 'Settings' }).click();
+    await expect(page.getByRole('heading', { name: 'Audio & Sonification Settings' })).toBeVisible();
+    await expect(page.locator('.trial-locked-banner')).toBeVisible();
+
+    // Switch back to Experiment tab
+    await page.getByRole('button', { name: 'Research Experiment' }).click();
+
+    // Must be in trial_interrupted view
+    await expect(page.locator('.interruption-card')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Restart Trial/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Resume Trial/i })).toBeVisible();
+
+    // Click Resume Trial to resume exploration
+    await page.getByRole('button', { name: /Resume Trial/i }).click();
+    await expect(page.locator('.explorer-panel')).toBeVisible();
+  });
+
+  test('walks through research experiment workflow across all three conditions to completion', async ({ page }) => {
     await page.goto('/');
 
     // Switch to Research Experiment tab
@@ -155,34 +210,46 @@ test.describe('Auditory Graph Explorer E2E & Accessibility', () => {
     await page.getByRole('button', { name: /Confirm Audio & Proceed to Training/i }).click();
     await page.getByRole('button', { name: /I Am Ready to Begin Experimental Trials/i }).click();
 
-    // Complete all 5 tasks in Block 0
-    for (let i = 0; i < 5; i++) {
-      await page.getByRole('button', { name: /Start Graph Exploration/i }).click();
-      await page.getByRole('button', { name: /Finish Exploration & Enter Response/i }).click();
+    // Loop through 3 condition blocks (5 trials per block = 15 trials total)
+    for (let block = 0; block < 3; block++) {
+      for (let trial = 0; trial < 5; trial++) {
+        await page.getByRole('button', { name: /Start Graph Exploration/i }).click();
+        await page.getByRole('button', { name: /Finish Exploration & Enter Response/i }).click();
 
-      // For boolean tasks, select True
-      const boolRadio = page.locator('input[name="boolChoice"]').first();
-      if (await boolRadio.isVisible()) {
-        await boolRadio.check();
+        // For boolean tasks, select True
+        const boolRadio = page.locator('input[name="boolChoice"]').first();
+        if (await boolRadio.isVisible()) {
+          await boolRadio.check();
+        }
+
+        await page.getByRole('button', { name: /Submit Answer/i }).click();
       }
 
-      await page.getByRole('button', { name: /Submit Answer/i }).click();
+      // Workload assessment (Modified Raw NASA-TLX)
+      await expect(page.getByRole('heading', { name: /Condition Workload Assessment/i })).toBeVisible();
+      await expect(page.locator('.scale-group')).toHaveCount(6);
+
+      // Sliders default to 5
+      const mentalSlider = page.locator('#mental');
+      await expect(mentalSlider).toHaveValue('5');
+
+      await page.getByRole('button', { name: /Submit Workload Rating/i }).click();
+
+      if (block < 2) {
+        // Rest period between blocks
+        await expect(page.locator('h2')).toContainText('Rest Period');
+        await page.getByRole('button', { name: /Continue to Next Condition Block/i }).click();
+      }
     }
 
-    // Now workload questionnaire (Modified Raw NASA-TLX) must be shown
-    await expect(page.getByRole('heading', { name: /Condition Workload Assessment/i })).toBeVisible();
-    await expect(page.locator('.scale-group')).toHaveCount(6);
+    // After all 3 blocks complete -> Session Completed view!
+    await expect(page.getByRole('heading', { name: /Research Session Completed/i })).toBeVisible();
 
-    // Sliders must default to midpoint 5
-    const mentalSlider = page.locator('#mental');
-    await expect(mentalSlider).toHaveValue('5');
-
-    // Submit workload
-    await page.getByRole('button', { name: /Submit Workload Rating/i }).click();
-
-    // Must advance to Rest Period phase
-    await expect(page.locator('h2')).toContainText('Rest Period');
-    await expect(page.getByRole('button', { name: /Continue to Next Condition Block/i })).toBeVisible();
+    // Navigate to Results view
+    await page.getByRole('button', { name: /View Results & Export Data/i }).click();
+    await expect(page.getByRole('heading', { name: 'Research Results & Metrics' })).toBeVisible();
+    await expect(page.locator('.results-table').first().locator('tbody tr')).toHaveCount(15);
+    await expect(page.locator('.results-table').nth(1).locator('tbody tr')).toHaveCount(3);
   });
 
   test('switches tabs cleanly and isolates explorer settings', async ({ page }) => {
