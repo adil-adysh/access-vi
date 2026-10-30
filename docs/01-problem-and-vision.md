@@ -8,13 +8,19 @@ This is **not** a claim that blind people cannot reason spatially or that all ve
 
 We want to enable **independent structural discovery**—not merely automate the delivery of the answer. A participant should be able to determine whether a path or cycle exists by exploring relations, rather than hearing a generated summary saying “there is a cycle.”
 
-## Research question
+## Governing mission and research stages (accepted 2026-10-30)
+
+**First**, provide complete, independently explorable access to all *supported meaningful source information* in a graph or diagram, via screen-reader text for symbolic content and a faithful auditory mapping of meaningful non-text visual distinctions. **Second**, validate fidelity, usability and the user's structural mental model. **Third**, test audio-first improvements in consumption and navigation, adopting them only when findings support their benefits without deleting or distorting original-information access.
+
+See the [governing research strategy](13-faithful-access-to-audio-first-research-strategy.md). This sequence does **not** mean every pixel needs sonification, that every possible diagram type is supported, or that nonvisual use is proven equivalent in speed to visual reading.
+
+## Existing exploratory study research question (legacy A/B/C)
 
 Can a keyboard-operated auditory representation of a directed graph support accurate and efficient reasoning about its structure, and does adding non-speech sound and then stereo positioning change outcomes relative to an interactive speech-only baseline?
 
 ## Design principle: informational versus computational equivalence
 
-All conditions must expose the same underlying graph, direction, labels and traversal operations. That does not make their **effort** or **perceptual information** identical; we study those differences. A condition must not receive shortcuts or explicit graph-analysis answers unavailable to other conditions.
+All conditions must expose the same underlying graph, direction, labels and traversal operations. That does not make their **effort** or **perceptual information** identical; we study those differences. **This legacy study parity differs from the new program's faithful reference coverage audit**, which explicitly inventories source features and demonstrates independent access to each supported property. A condition must not receive shortcuts or explicit graph-analysis answers unavailable to other conditions.
 
 ## Initial tasks
 
@@ -43,4 +49,4 @@ Previous work already explores nonvisual node-link diagrams (particularly TADA [
 - **Research success:** trustworthy measurements and analysis, even if auditory/spatial conditions perform the same or worse.
 - **Product success:** separate future goal, requiring broader evaluation beyond a prototype.
 
-See [questions](03-research-questions.md), [protocol](04-experimental-protocol.md), and [research foundations](02-research-foundations.md).
+See [the governing strategy](13-faithful-access-to-audio-first-research-strategy.md), [legacy study questions](03-research-questions.md), [protocol](04-experimental-protocol.md), and [research foundations](02-research-foundations.md).
