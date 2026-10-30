@@ -2,6 +2,10 @@
 
 **Not ethics-approved, preregistered or executed.** This document is a proposed protocol, not permission to begin a formal human-subjects study. Seek applicable research ethics review/consent procedures before recruitment or publication.
 
+## Research-program boundary
+
+The accepted [faithful-access-first research strategy](13-faithful-access-to-audio-first-research-strategy.md) introduces separate milestones for source-information coverage, verified independent exploration, perceptual fidelity, and later audio-first optimization. **This experimental protocol remains scoped to the legacy A/B/C comparison** unless revised and versioned. The new Stage 1/2/3 sequence does not rename its study conditions. Future optimization trials must preserve full source access and track any extra navigation/derived aids separately from original graph facts. Never compare legacy and new conditions without declaring the mapping, training, graph properties, and information exposure differences.
+
 ## Design-rule change control
 
 The accepted [visual–auditory semantic parity and screen-reader text rule](11-visual-auditory-parity-governing-rules.md) supersedes the legacy ID-based node-pitch design **for future mappings**. Do not silently alter the current A/B/C sound profiles in-place. A revised study must use a new mapping version, document uniform same-shape intrinsic sounds, non-speech shape/edge semantics, NVDA ownership of all graph text (including node and edge labels), and retest comparability and information exposure. Existing data must retain the mapping actually used.
