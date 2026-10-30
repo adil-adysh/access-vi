@@ -168,6 +168,24 @@ export class ExplorationController {
     this.setDirection(this.direction === 'outgoing' ? 'incoming' : 'outgoing');
   }
 
+  private formatNeighborAnnouncement(selectedId: string, index: number, total: number): string {
+    const node = this.graph.getNode(selectedId);
+    const nodeLabel = node?.label && node.label !== selectedId ? ` (${node.label})` : '';
+
+    const edge =
+      this.direction === 'outgoing'
+        ? this.graph.getEdges().find((e) => e.source === this.currentNodeId && e.target === selectedId)
+        : this.graph.getEdges().find((e) => e.source === selectedId && e.target === this.currentNodeId);
+
+    const edgeLabel = edge?.label ? `, edge "${edge.label}"` : '';
+    const lineStyle =
+      edge?.presentation?.lineStyle && edge.presentation.lineStyle !== 'solid'
+        ? `, ${edge.presentation.lineStyle} line`
+        : '';
+
+    return `Selected ${this.direction} connection ${index + 1} of ${total}: Node ${selectedId}${nodeLabel}${edgeLabel}${lineStyle}`;
+  }
+
   public nextNeighbor(): void {
     const neighbors = this.getAvailableNeighbors();
     if (neighbors.length === 0) {
@@ -179,7 +197,7 @@ export class ExplorationController {
     const selected = neighbors[this.selectedNeighborIndex];
     this.logAction('SELECT_NEIGHBOR', { selectedNeighborIndex: this.selectedNeighborIndex, selectedNeighbor: selected });
 
-    this.emitAnnouncement(`Selected ${this.direction} connection ${this.selectedNeighborIndex + 1} of ${neighbors.length}: Node ${selected}`, 'polite');
+    this.emitAnnouncement(this.formatNeighborAnnouncement(selected, this.selectedNeighborIndex, neighbors.length), 'polite');
     this.emitStateChange('SELECT_NEIGHBOR');
     this.emitPlaybackRequest('SELECT_NEIGHBOR');
   }
@@ -195,7 +213,7 @@ export class ExplorationController {
     const selected = neighbors[this.selectedNeighborIndex];
     this.logAction('SELECT_NEIGHBOR', { selectedNeighborIndex: this.selectedNeighborIndex, selectedNeighbor: selected });
 
-    this.emitAnnouncement(`Selected ${this.direction} connection ${this.selectedNeighborIndex + 1} of ${neighbors.length}: Node ${selected}`, 'polite');
+    this.emitAnnouncement(this.formatNeighborAnnouncement(selected, this.selectedNeighborIndex, neighbors.length), 'polite');
     this.emitStateChange('SELECT_NEIGHBOR');
     this.emitPlaybackRequest('SELECT_NEIGHBOR');
   }
@@ -206,6 +224,7 @@ export class ExplorationController {
     this.selectedNeighborIndex = index;
     const selected = neighbors[this.selectedNeighborIndex];
     this.logAction('SELECT_NEIGHBOR', { selectedNeighborIndex: index, selectedNeighbor: selected });
+    this.emitAnnouncement(this.formatNeighborAnnouncement(selected, index, neighbors.length), 'polite');
     this.emitStateChange('SELECT_NEIGHBOR');
     this.emitPlaybackRequest('SELECT_NEIGHBOR');
   }
@@ -226,10 +245,12 @@ export class ExplorationController {
 
     this.logAction('TRAVERSE', { previousNode, targetNode: target, direction: this.direction });
 
+    const targetNode = this.graph.getNode(target);
+    const targetLabel = targetNode?.label && targetNode.label !== target ? ` (${targetNode.label})` : '';
     const outCount = this.graph.getOutDegree(target);
     const inCount = this.graph.getInDegree(target);
     this.emitAnnouncement(
-      `Moved to Node ${target}. Outgoing: ${outCount}, Incoming: ${inCount}.`,
+      `Moved to Node ${target}${targetLabel}. Outgoing: ${outCount}, Incoming: ${inCount}.`,
       'assertive'
     );
 
@@ -252,7 +273,9 @@ export class ExplorationController {
     this.updateInspection();
 
     this.logAction('GO_BACK', { fromNode, returnedToNode: previous });
-    this.emitAnnouncement(`Returned back to Node ${previous}.`, 'assertive');
+    const prevNode = this.graph.getNode(previous);
+    const prevLabel = prevNode?.label && prevNode.label !== previous ? ` (${prevNode.label})` : '';
+    this.emitAnnouncement(`Returned back to Node ${previous}${prevLabel}.`, 'assertive');
 
     this.emitStateChange('GO_BACK');
     this.emitPlaybackRequest('GO_BACK');
@@ -273,7 +296,9 @@ export class ExplorationController {
     this.updateInspection();
 
     this.logAction('GO_TO_START', { fromNode, startNode: this.startNodeId });
-    this.emitAnnouncement(`Returned to starting Node ${this.startNodeId}.`, 'assertive');
+    const startNode = this.graph.getNode(this.startNodeId);
+    const startLabel = startNode?.label && startNode.label !== this.startNodeId ? ` (${startNode.label})` : '';
+    this.emitAnnouncement(`Returned to starting Node ${this.startNodeId}${startLabel}.`, 'assertive');
 
     this.emitStateChange('GO_TO_START');
     this.emitPlaybackRequest('GO_TO_START');
@@ -299,7 +324,9 @@ export class ExplorationController {
     this.updateInspection();
 
     this.logAction('JUMP_TO_NODE', { fromNode, targetNode: nodeId });
-    this.emitAnnouncement(`Jumped directly to Node ${nodeId}.`, 'assertive');
+    const jumpedNode = this.graph.getNode(nodeId);
+    const jumpedLabel = jumpedNode?.label && jumpedNode.label !== nodeId ? ` (${jumpedNode.label})` : '';
+    this.emitAnnouncement(`Jumped directly to Node ${nodeId}${jumpedLabel}.`, 'assertive');
 
     this.emitStateChange('JUMP_TO_NODE');
     this.emitPlaybackRequest('JUMP_TO_NODE');

@@ -11,6 +11,15 @@ export interface ConditionDefinition {
 }
 
 export const EXPERIMENTAL_CONDITIONS: Record<ExperimentalConditionId, ConditionDefinition> = {
+  condition_parity: {
+    id: 'condition_parity',
+    name: 'Visual-Auditory Parity (Default Reference)',
+    shortLabel: 'Parity Audio',
+    description: 'Governing visual-auditory parity representation: waveform timbre denotes shape at 300 Hz carrier, connection cues denote direction, screen reader vocalizes text.',
+    hasSonification: true,
+    isSpatial: false,
+    hasSpeech: true
+  },
   condition_a_speech: {
     id: 'condition_a_speech',
     name: 'Condition A: Speech-Only',

@@ -7,6 +7,7 @@ export type PlaybackState = 'idle' | 'playing' | 'interrupted';
 export type ExplorationMode = 'free_exploration' | 'experiment_trial' | 'training';
 
 export type ExperimentalConditionId =
+  | 'condition_parity'
   | 'condition_a_speech'
   | 'condition_b_non_spatial'
   | 'condition_c_spatial';

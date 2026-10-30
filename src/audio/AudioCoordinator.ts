@@ -7,11 +7,14 @@ import { SpeechOnlyStrategy } from './sonification/SpeechOnlyStrategy.js';
 import type {
   SonificationConfig,
   SemanticAudioEvent,
-  SemanticEventType
+  SemanticEventType,
+  AudioSequence
 } from './types.js';
 import { DEFAULT_SONIFICATION_CONFIG } from './types.js';
 import type { NavigationState, NavigationActionType } from '../domain/navigation/types.js';
 import type { DirectedGraph } from '../domain/graph/Graph.js';
+import { ParitySoundRegistry } from './parity/ParitySoundRegistry.js';
+import type { NodeShape } from '../domain/presentation/types.js';
 
 export class AudioCoordinator {
   private readonly contextManager: AudioContextManager;
@@ -66,6 +69,35 @@ export class AudioCoordinator {
     }
   }
 
+  public getParityRegistry(): ParitySoundRegistry {
+    if (this.strategy instanceof ParitySonificationStrategy) {
+      return this.strategy.getRegistry();
+    }
+    return new ParitySoundRegistry();
+  }
+
+  public playShapeTone(shape: NodeShape): PlaybackHandle | null {
+    const registry = this.getParityRegistry();
+    const tone = registry.createNodeCategoryTone(shape);
+    const sequence: AudioSequence = {
+      id: `test-tone-${shape}-${Date.now()}`,
+      notes: [{ timeOffsetSec: 0.0, tone }],
+      totalDurationSec: tone.durationSec + 0.05
+    };
+    try {
+      const ctx = this.contextManager.getAudioContext();
+      if (!this.scheduler) {
+        this.scheduler = new SequenceScheduler(ctx, this.contextManager.getDestination());
+      }
+      this.cancelPlayback();
+      this.currentPlayback = this.scheduler.scheduleSequence(sequence, this.config.playbackSpeed);
+      return this.currentPlayback;
+    } catch (err) {
+      console.warn('Audio playback not started:', err);
+      return null;
+    }
+  }
+
   public handleNavigationAction(
     state: NavigationState,
     action: NavigationActionType
@@ -81,7 +113,7 @@ export class AudioCoordinator {
       return null;
     }
 
-    const isSpatial = state.condition === 'condition_c_spatial';
+    const isSpatial = state.condition === 'condition_c_spatial' || (this.config.useSpatial ?? false);
     const activeConfig: SonificationConfig = {
       ...this.config,
       useSpatial: isSpatial
@@ -90,12 +122,22 @@ export class AudioCoordinator {
     const semanticEvent = this.createSemanticEvent(state, action, isSpatial);
     if (!semanticEvent) return null;
 
-    // Governing Rule E: If running legacy condition B or C, strictly use LegacySonificationStrategy
-    if (state.condition === 'condition_b_non_spatial' || state.condition === 'condition_c_spatial') {
+    // Governing Rule E: Formal study trials strictly enforce historical mappings for reproducibility
+    if (state.mode === 'experiment_trial') {
+      if (state.condition === 'condition_b_non_spatial' || state.condition === 'condition_c_spatial') {
+        const legacy = (this.legacyStrategy ??= new LegacySonificationStrategy());
+        return this.executeStrategySequence(legacy, semanticEvent, activeConfig, state.graph);
+      }
+    }
+
+    // In free exploration or training:
+    // If the active strategy is explicitly legacy, execute legacy mapping
+    if (this.strategy instanceof LegacySonificationStrategy) {
       const legacy = (this.legacyStrategy ??= new LegacySonificationStrategy());
       return this.executeStrategySequence(legacy, semanticEvent, activeConfig, state.graph);
     }
 
+    // Otherwise, execute the active strategy (ParitySonificationStrategy by default)
     return this.executeStrategySequence(this.strategy, semanticEvent, activeConfig, state.graph);
   }
 

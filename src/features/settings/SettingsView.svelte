@@ -62,11 +62,33 @@
   function handleConditionChange(condId: ExperimentalConditionId) {
     currentCondition = condId;
     controller.setCondition(condId);
+    if (condId === 'condition_parity') {
+      audioCoordinator.setStrategyByVersion('visual-auditory-parity-v1');
+    } else if (condId === 'condition_a_speech') {
+      audioCoordinator.setStrategyByVersion('speech-only-v1');
+    } else if (condId === 'condition_b_non_spatial') {
+      audioCoordinator.setStrategyByVersion('legacy-study-v1');
+      audioCoordinator.updateConfig({ useSpatial: false });
+    } else if (condId === 'condition_c_spatial') {
+      audioCoordinator.setStrategyByVersion('legacy-study-v1');
+      audioCoordinator.updateConfig({ useSpatial: true });
+    }
+    activeStrategyVersion = audioCoordinator.getStrategy().version;
   }
 
   function handleStrategyChange(version: string) {
     audioCoordinator.setStrategyByVersion(version);
     activeStrategyVersion = audioCoordinator.getStrategy().version;
+    if (version === 'visual-auditory-parity-v1') {
+      controller.setCondition('condition_parity');
+      currentCondition = 'condition_parity';
+    } else if (version === 'speech-only-v1') {
+      controller.setCondition('condition_a_speech');
+      currentCondition = 'condition_a_speech';
+    } else if (version === 'legacy-study-v1') {
+      controller.setCondition('condition_b_non_spatial');
+      currentCondition = 'condition_b_non_spatial';
+    }
   }
 
   function handleShapeGainChange(shape: NodeShape, gain: number) {
@@ -80,18 +102,7 @@
   }
 
   function testShapeTone(shape: NodeShape) {
-    const strat = audioCoordinator.getStrategy();
-    if (strat instanceof ParitySonificationStrategy) {
-      audioCoordinator.playSemanticEvent({
-        type: 'NODE_FOCUS',
-        nodeId: `test-${shape}`,
-        nodeIndex: 0,
-        totalNodes: 1,
-        direction: 'outgoing',
-        neighborIds: [],
-        isSpatial: false
-      });
-    }
+    audioCoordinator.playShapeTone(shape);
   }
 
   function handleResetGains() {

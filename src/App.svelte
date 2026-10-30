@@ -25,12 +25,16 @@
 
   const storage = new IndexedDBStorage();
   const audioCoordinator = new AudioCoordinator();
-  const parityEngine = new ParitySonificationEngine(audioCoordinator.getContextManager());
+  // Share candidate parity registry between AudioCoordinator and ParitySonificationEngine
+  const parityEngine = new ParitySonificationEngine(
+    audioCoordinator.getContextManager(),
+    audioCoordinator.getParityRegistry()
+  );
 
-  // Distinct isolated controllers for free exploration and experimental trials
+  // Free exploration defaults to the faithful visual-auditory parity condition
   const freeController = new ExplorationController(
     initialGraph,
-    'condition_b_non_spatial',
+    'condition_parity',
     'free_exploration',
     DEFAULT_FREE_POLICY
   );

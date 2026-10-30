@@ -300,8 +300,8 @@
     {/if}
   </div>
 
-  <!-- Disconnected Graph Components Discovery -->
-  {#if weaklyConnectedComponents.length > 1}
+  <!-- Disconnected Graph Components Discovery (Free Exploration Only - Protected under Study Exposure Policy) -->
+  {#if exposure.showAdjacencyTable && weaklyConnectedComponents.length > 1}
     <div class="card disconnected-banner" role="region" aria-label="Disconnected Graph Components">
       <div class="disconnected-header">
         <h4>⚠️ Disconnected Graph Structure ({weaklyConnectedComponents.length} Separate Components)</h4>

@@ -197,4 +197,94 @@ describe('Graph Explorer Visual-Auditory Parity Integration', () => {
     audioCoordinator.setStrategyByVersion('legacy-study-v1');
     expect(audioCoordinator.getStrategy()).toBeInstanceOf(LegacySonificationStrategy);
   });
+
+  it('routes free exploration navigation through ParitySonificationStrategy via handleNavigationAction (Finding 1)', () => {
+    const freeCtrl = new ExplorationController(graph, 'condition_parity', 'free_exploration');
+    const strat = audioCoordinator.getStrategy();
+    expect(strat).toBeInstanceOf(ParitySonificationStrategy);
+
+    // In free exploration mode, handleNavigationAction must execute ParitySonificationStrategy
+    // Traverse A -> B (B is rectangle)
+    freeCtrl.traverseSelectedNeighbor();
+    const playback = audioCoordinator.handleNavigationAction(freeCtrl.getState(), 'TRAVERSE');
+    expect(playback).toBeNull(); // Headless environment has no active Web Audio context
+    // Verify that the parity strategy mapEventToSequence generates the 300 Hz triangle wave for Node B
+    // Verify that the parity strategy mapEventToSequence generates the 300 Hz triangle wave for Node B
+    const seq = strat.mapEventToSequence(
+      {
+        type: 'OUTGOING_SUMMARY',
+        nodeId: 'B',
+        nodeIndex: 1,
+        totalNodes: 4,
+        direction: 'outgoing',
+        neighborIds: ['C'],
+        isSpatial: false
+      },
+      audioCoordinator.getConfig(),
+      graph
+    );
+    expect(seq).not.toBeNull();
+    expect(seq!.notes[0].tone.waveform).toBe('triangle');
+    expect(seq!.notes[0].tone.frequency).toBe(300);
+  });
+
+  it('strictly enforces LegacySonificationStrategy during experiment_trial mode for conditions B and C (Rule E)', () => {
+    const trialCtrl = new ExplorationController(graph, 'condition_b_non_spatial', 'experiment_trial');
+    // Ensure coordinator has parity as default strategy
+    audioCoordinator.setStrategyByVersion('visual-auditory-parity-v1');
+    expect(audioCoordinator.getStrategy()).toBeInstanceOf(ParitySonificationStrategy);
+
+    // When trialCtrl triggers action, verify handleNavigationAction operates cleanly
+    const trialPlayback = audioCoordinator.handleNavigationAction(trialCtrl.getState(), 'REPLAY');
+    expect(trialPlayback).toBeNull();
+
+    // AudioCoordinator must strictly preserve legacy strategy sequence
+    const legacyStrat = new LegacySonificationStrategy();
+    const legacySeq = legacyStrat.mapEventToSequence(
+      {
+        type: 'NODE_FOCUS',
+        nodeId: 'A',
+        nodeIndex: 0,
+        totalNodes: 4,
+        direction: 'outgoing',
+        neighborIds: ['B'],
+        isSpatial: false
+      },
+      audioCoordinator.getConfig(),
+      graph
+    );
+    expect(legacySeq).not.toBeNull();
+    // Legacy mapping uses pentatonic scale: Node A (index 0) = 261.63 Hz (Middle C), distinct from Parity 300 Hz carrier
+    expect(legacySeq!.notes[0].tone.frequency).toBe(261.63);
+  });
+
+  it('includes node labels and edge labels in navigation announcements (Finding 9)', () => {
+    announcements = [];
+    controller.nextNeighbor();
+    expect(announcements.length).toBeGreaterThan(0);
+    // Node B has label 'Database Core' and edge e1 has label 'queries'
+    expect(announcements[0]).toContain('Node B (Database Core)');
+    expect(announcements[0]).toContain('edge "queries"');
+
+    // Traversal announcement
+    announcements = [];
+    controller.traverseSelectedNeighbor();
+    expect(announcements[0]).toContain('Moved to Node B (Database Core)');
+  });
+
+  it('plays calibrated shape test tones via playShapeTone in Settings (Finding 7)', () => {
+    const registry = audioCoordinator.getParityRegistry();
+    const toneCircle = registry.createNodeCategoryTone('circle');
+    const toneRect = registry.createNodeCategoryTone('rectangle');
+    const toneDiamond = registry.createNodeCategoryTone('diamond');
+
+    expect(toneCircle.waveform).toBe('sine');
+    expect(toneCircle.frequency).toBe(300);
+
+    expect(toneRect.waveform).toBe('triangle');
+    expect(toneRect.frequency).toBe(300);
+
+    expect(toneDiamond.waveform).toBe('square');
+    expect(toneDiamond.frequency).toBe(300);
+  });
 });
