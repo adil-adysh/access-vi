@@ -9,7 +9,7 @@
 
 > **The visual representation must match the non-speech auditory representation in the distinctions it communicates. If two nodes have the same non-textual visual appearance, their intrinsic node sounds must be the same. If a visual encoding distinguishes two nodes (for example, circle versus rectangle), the auditory representation must consistently distinguish that same visual property. All graph text, including node labels and edge labels, must be exposed and announced through the screen reader—not translated into arbitrary non-speech tones.**
 
-This rule governs representation of the graph, not the incidental sounds of keyboard actions or alerts.
+This rule governs the **faithful representation of the original graph**, not incidental sounds of keyboard actions or alerts. Under the accepted [research strategy](13-faithful-access-to-audio-first-research-strategy.md), this mapping is the mandatory **reference representation** for supported source features. Later, separately tested audio-first modes may include explicitly labeled wayfinding aids or derived cues not present visually, **provided the source mapping remains independently reachable, and aids cannot be mistaken for original diagram information**. Such aids must not silently change the intrinsic category sound used by the faithful reference.
 
 **Semantic parity means matched informational distinctions, not physically identical sensations.** A circle need not “sound circular”; its sound category must be stable, distinguishable from a rectangle, and documented. No auditory cue may imply a rank, category, depth, importance, distance, or connection that is not encoded by the underlying visual diagram/graph semantics.
 
@@ -121,4 +121,4 @@ This is a **governing product/research design rule**, not a previously proven ex
 
 The evidence-based candidate vocabulary, perceptual grouping risks, and first-person formative observations are documented in [perceptual mapping and auditory Gestalt](12-perceptual-mapping-and-auditory-gestalt.md). All candidate sound assignments remain subject to this governing rule.
 
-Cross-references: [sonification design](05-sonification-design.md), [accessibility](07-accessibility.md), [experiment protocol](04-experimental-protocol.md), [spatial mental models](10-spatial-mental-models-and-graph-geometry.md), and [research decisions](09-decisions-and-risks.md).
+Cross-references: [governing research strategy](13-faithful-access-to-audio-first-research-strategy.md), [sonification design](05-sonification-design.md), [accessibility](07-accessibility.md), [experiment protocol](04-experimental-protocol.md), [spatial mental models](10-spatial-mental-models-and-graph-geometry.md), and [research decisions](09-decisions-and-risks.md).
