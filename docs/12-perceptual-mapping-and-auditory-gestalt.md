@@ -3,7 +3,7 @@
 **Project:** Access-VI / Auditory Graph Explorer  
 **Date:** 2026-10-30  
 **Status:** Research synthesis + candidate design mappings; **not implemented, validated, or a new recorded-study condition**.  
-**Authority:** The [governing visual–auditory parity rule](11-visual-auditory-parity-governing-rules.md) is normative. This document develops *possible implementations and tests* under that rule, but must not be taken as proof that any given cue works.
+**Authority:** The [governing visual–auditory parity rule](11-visual-auditory-parity-governing-rules.md) is normative for the **faithful reference**, within the [three-stage research strategy](13-faithful-access-to-audio-first-research-strategy.md). This document develops *possible implementations and tests* under that rule, but must not be taken as proof that any given cue works.
 
 ## 1. Objective and origin
 
@@ -141,6 +141,8 @@ First test one isolated variable at a time, then combinations:
 Retain all negative findings. Prefer **accuracy, reconstruction, retention and workload** over aesthetic preference alone.
 
 ## 8. Prioritization and open questions
+
+**Program sequence:** Before claiming a mapping is a faithful reference (Stage 1), inventory complete source information and accessible inspection paths—not merely the mapping of circle/rectangle/diamond. Stage 2 validates user comprehension and independent exploration. Stage 3 may investigate more effective audio-first groupings as additional, explicitly identified aids **without removing access to original information**.
 
 **P0 — Correct category/label semantics:** Node and edge text belongs to NVDA, and intrinsic non-speech node cues derive only from meaningful shape/style. No node-ID frequency mapping.
 
