@@ -3,9 +3,9 @@
   import { EXPERIMENTAL_CONDITIONS } from '../research/conditions/types.js';
 
   interface Props {
-    activeTab: 'explorer' | 'experiment' | 'results' | 'settings';
+    activeTab: 'explorer' | 'lab' | 'experiment' | 'results' | 'settings';
     condition: ExperimentalConditionId;
-    onTabChange: (tab: 'explorer' | 'experiment' | 'results' | 'settings') => void;
+    onTabChange: (tab: 'explorer' | 'lab' | 'experiment' | 'results' | 'settings') => void;
     onOpenHelp: () => void;
     onOpenImport: () => void;
   }
@@ -37,6 +37,14 @@
         aria-current={activeTab === 'explorer' ? 'page' : undefined}
       >
         Graph Explorer
+      </button>
+
+      <button
+        class={activeTab === 'lab' ? 'nav-btn active' : 'nav-btn'}
+        onclick={() => onTabChange('lab')}
+        aria-current={activeTab === 'lab' ? 'page' : undefined}
+      >
+        Sound Lab
       </button>
 
       <button

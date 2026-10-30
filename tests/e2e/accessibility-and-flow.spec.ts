@@ -267,4 +267,36 @@ test.describe('Auditory Graph Explorer E2E & Accessibility', () => {
     await page.getByRole('button', { name: 'Graph Explorer' }).click();
     await expect(page.locator('.node-id-display')).toContainText('Node A');
   });
+
+  test('navigates to Sound Mapping Laboratory and passes axe accessibility scan', async ({ page }) => {
+    await page.goto('/');
+
+    // Navigate to Sound Lab tab
+    await page.getByRole('button', { name: 'Sound Lab' }).click();
+    await expect(page.getByRole('heading', { name: 'Sound Mapping Laboratory' })).toBeVisible();
+    await expect(page.getByRole('status', { name: /visual-auditory-parity-v1/i })).toBeVisible();
+
+    // Verify legend cards
+    await expect(page.locator('.legend-card')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Play Circle/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Play Rectangle/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Play Diamond/i })).toBeVisible();
+
+    // Verify visual diagram renderer SVG is present and accessible
+    await expect(page.locator('.visual-renderer-card svg')).toBeVisible();
+
+    // Run axe audit on Sound Mapping Laboratory
+    const accessibilityScanResults = await new AxeBuilder({ page })
+      .exclude('vite-error-overlay')
+      .analyze();
+    expect(accessibilityScanResults.violations).toEqual([]);
+
+    // Select an option in the active test case and submit
+    await page.locator('.option-label').first().click();
+    await page.getByRole('button', { name: /Submit Answer/i }).click();
+
+    // Verify submission feedback and records table
+    await expect(page.locator('.submission-feedback')).toBeVisible();
+    await expect(page.locator('.records-table tbody tr')).toHaveCount(1);
+  });
 });

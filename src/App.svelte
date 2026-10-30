@@ -14,15 +14,18 @@
   import KeyboardHelpModal from './components/KeyboardHelpModal.svelte';
   import ImportModal from './features/import/ImportModal.svelte';
   import GraphExplorer from './features/explorer/GraphExplorer.svelte';
+  import SoundMappingLab from './features/lab/SoundMappingLab.svelte';
   import ExperimentView from './features/experiment/ExperimentView.svelte';
   import ResultsView from './features/results/ResultsView.svelte';
   import SettingsView from './features/settings/SettingsView.svelte';
+  import { ParitySonificationEngine } from './audio/parity/ParitySonificationEngine.js';
 
   const freeGraphs = getFreeExplorationGraphs();
   const initialGraph = freeGraphs['free-sandbox-1'];
 
   const storage = new IndexedDBStorage();
   const audioCoordinator = new AudioCoordinator();
+  const parityEngine = new ParitySonificationEngine(audioCoordinator.getContextManager());
 
   // Distinct isolated controllers for free exploration and experimental trials
   const freeController = new ExplorationController(
@@ -37,7 +40,7 @@
   );
   let experimentController = $derived(runner.getController());
 
-  let activeTab = $state<'explorer' | 'experiment' | 'results' | 'settings'>('explorer');
+  let activeTab = $state<'explorer' | 'lab' | 'experiment' | 'results' | 'settings'>('explorer');
   let isHelpOpen = $state(false);
   let isImportOpen = $state(false);
 
@@ -145,11 +148,12 @@
     };
   });
 
-  function handleTabChange(tab: 'explorer' | 'experiment' | 'results' | 'settings') {
+  function handleTabChange(tab: 'explorer' | 'lab' | 'experiment' | 'results' | 'settings') {
     if (tab !== activeTab) {
       audioCoordinator.cancelPlayback();
       freeController.cancelPlayback();
       experimentController.cancelPlayback();
+      parityEngine.cancelPlayback();
 
       if (activeTab === 'experiment' && tab !== 'experiment') {
         runner.recordInterruption('Participant switched away from experiment tab');
@@ -215,6 +219,17 @@
     <GraphExplorer
       controller={freeController}
       onOpenHelp={() => (isHelpOpen = true)}
+    />
+  {:else if activeTab === 'lab'}
+    <SoundMappingLab
+      audioEngine={parityEngine}
+      onAnnounce={(msg, priority) => {
+        if (priority === 'assertive') {
+          assertiveAnnouncement = msg;
+        } else {
+          politeAnnouncement = msg;
+        }
+      }}
     />
   {:else if activeTab === 'experiment'}
     <ExperimentView
