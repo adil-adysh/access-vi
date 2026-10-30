@@ -1,6 +1,60 @@
 import { DirectedGraph } from '../../domain/graph/Graph.js';
 import { GraphParser } from '../../domain/graph/parser.js';
 
+// ==========================================
+// FREE EXPLORATION SANDBOX GRAPHS
+// (Completely segregated from research stimuli)
+// ==========================================
+
+export const FREE_SANDBOX_1_DOT = `
+digraph FreePlayground {
+  "A" [label="Node A"];
+  "B" [label="Node B"];
+  "C" [label="Node C"];
+  "D" [label="Node D"];
+  "E" [label="Node E"];
+  "A" -> "B";
+  "A" -> "C";
+  "B" -> "D";
+  "C" -> "E";
+  "D" -> "E";
+}
+`;
+
+export const FREE_SANDBOX_2_DOT = `
+digraph FreeCycleSandbox {
+  "A" [label="Node A"];
+  "B" [label="Node B"];
+  "C" [label="Node C"];
+  "D" [label="Node D"];
+  "A" -> "B";
+  "B" -> "C";
+  "C" -> "A";
+  "B" -> "D";
+}
+`;
+
+export const FREE_SANDBOX_3_DOT = `
+digraph FreeHierarchySandbox {
+  "A" [label="Node A"];
+  "B" [label="Node B"];
+  "C" [label="Node C"];
+  "D" [label="Node D"];
+  "E" [label="Node E"];
+  "F" [label="Node F"];
+  "A" -> "B";
+  "A" -> "C";
+  "B" -> "D";
+  "B" -> "E";
+  "C" -> "F";
+}
+`;
+
+// ==========================================
+// RESEARCH STIMULI GRAPHS
+// (Used exclusively by ExperimentRunner during controlled trials)
+// ==========================================
+
 export const TRAINING_GRAPH_DOT = `
 digraph TrainingGraph {
   "A" [label="Node A"];
@@ -110,7 +164,49 @@ digraph UnfamiliarTransferGraph {
 }
 `;
 
-export function getSampleGraphs(): Record<string, DirectedGraph> {
+/**
+ * Returns graphs safe for public, unrestricted free exploration and sample imports.
+ * Never includes controlled research stimuli.
+ */
+export function getFreeExplorationGraphs(): Record<string, DirectedGraph> {
+  const g1 = GraphParser.parseDOT(FREE_SANDBOX_1_DOT, 'free-sandbox-1');
+  g1.setMetadata({
+    id: 'free-sandbox-1',
+    name: 'Exploration Playground',
+    description: '5-node open sandbox graph for free practice and exploration',
+    isTraining: false,
+    difficultyMetrics: g1.computeDifficultyMetrics()
+  });
+
+  const g2 = GraphParser.parseDOT(FREE_SANDBOX_2_DOT, 'free-sandbox-2');
+  g2.setMetadata({
+    id: 'free-sandbox-2',
+    name: 'Cycle Playground',
+    description: '4-node cyclic sandbox graph demonstrating loops',
+    isTraining: false,
+    difficultyMetrics: g2.computeDifficultyMetrics()
+  });
+
+  const g3 = GraphParser.parseDOT(FREE_SANDBOX_3_DOT, 'free-sandbox-3');
+  g3.setMetadata({
+    id: 'free-sandbox-3',
+    name: 'Hierarchy Playground',
+    description: '6-node branching sandbox graph',
+    isTraining: false,
+    difficultyMetrics: g3.computeDifficultyMetrics()
+  });
+
+  return {
+    'free-sandbox-1': g1,
+    'free-sandbox-2': g2,
+    'free-sandbox-3': g3
+  };
+}
+
+/**
+ * Returns controlled experimental stimuli used exclusively by the research experiment runner.
+ */
+export function getResearchStimuli(): Record<string, DirectedGraph> {
   const gTraining = GraphParser.parseDOT(TRAINING_GRAPH_DOT, 'graph-training');
   gTraining.setMetadata({
     id: 'graph-training',
@@ -173,4 +269,11 @@ export function getSampleGraphs(): Record<string, DirectedGraph> {
     'graph-exp-3': gExp3,
     'graph-transfer': gTransfer
   };
+}
+
+/**
+ * Returns the public sample graphs (defaults to free exploration graphs to prevent leakage).
+ */
+export function getSampleGraphs(): Record<string, DirectedGraph> {
+  return getFreeExplorationGraphs();
 }

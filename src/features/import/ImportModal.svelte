@@ -1,7 +1,7 @@
 <script lang="ts">
   import { GraphParser } from '../../domain/graph/parser.js';
   import { DirectedGraph } from '../../domain/graph/Graph.js';
-  import { getSampleGraphs } from '../../research/datasets/sampleGraphs.js';
+  import { getFreeExplorationGraphs } from '../../research/datasets/sampleGraphs.js';
 
   interface Props {
     isOpen: boolean;
@@ -16,7 +16,7 @@
   let errorMessage = $state('');
   let dialogElement = $state<HTMLElement | null>(null);
   let previousActiveElement: HTMLElement | null = null;
-  const sampleGraphs = getSampleGraphs();
+  const sampleGraphs = getFreeExplorationGraphs();
 
   $effect(() => {
     if (isOpen) {
