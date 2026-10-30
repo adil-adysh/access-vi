@@ -3,7 +3,7 @@
 **Project:** Access-VI / Auditory Graph Explorer  
 **Date:** 2026-10-30  
 **Status:** Research direction and proposed engineering work; **not** an implemented or validated outcome.  
-**Relation to current study:** Supplementary future study. Do not silently modify the existing A/B/C conditions or previously collected data.
+**Relation to current study:** Supplementary future study, **downstream of the faithful-access and validation stages** in the accepted [research strategy](13-faithful-access-to-audio-first-research-strategy.md). Do not silently modify the existing A/B/C conditions or previously collected data. When geometry is meaningfully part of the original source diagram, faithful access to it is a Stage-1 coverage requirement; using optional spatial cues to improve navigation is a separate Stage-3 optimization hypothesis.
 
 ## Executive research aim
 
