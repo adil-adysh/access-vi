@@ -62,6 +62,17 @@ Full text: https://pmc.ncbi.nlm.nih.gov/articles/PMC12574556/
 **[R16]** Chundury, P., Reyazuddin, Y., Jordan, J. B., Lazar, J., & Elmqvist, N. (2023). *TactualPlot: Spatializing Data as Sound using Sensory Substitution for Touchscreen Accessibility.* IEEE Transactions on Visualization and Computer Graphics. DOI: https://doi.org/10.1109/TVCG.2023.3326937  
 **Use:** embodied/touch reference frame combined with sound; not validation of keyboard-only stereo mapping.
 
+## Visual encoding and auditory perceptual grouping
+
+**[R17]** Börner, K., Bueckle, A., & Ginda, M. (2019). *Data visualization literacy: Definitions, conceptual frameworks, exercises, and assessments.* Proceedings of the National Academy of Sciences, 116(6), 1857–1864. DOI: https://doi.org/10.1073/pnas.1807180116  
+**Use:** Explains visual variables and distinguishes identity/qualitative channels (e.g., shape, hue) from ordered/magnitude channels (e.g., size, position). Does not establish a particular auditory mapping.
+
+**[R18]** Snyder, J. S., & Alain, C. (2007). *Toward a neurophysiological theory of auditory stream segregation.* Psychological Bulletin, 133(5), 780–799. DOI: https://doi.org/10.1037/0033-2909.133.5.780  
+**Use:** General auditory grouping/stream segregation mechanisms; not a controlled test of Access-VI graph sounds.
+
+**[R19]** Neuhoff, J. G., Kramer, G., & Wayand, J. (2002). *Pitch and loudness interact in auditory displays: Can the data get lost in the map?* Journal of Experimental Psychology: Applied, 8(1), 17–25. DOI: https://doi.org/10.1037/1076-898X.8.1.17  
+**Use:** Demonstrates pitch/loudness interaction and possible auditory-display distortions. Provides caution against assuming independent, neutral acoustic channels.
+
 ## Evidence-use policy
 
 When citing prior studies, report sample size, tasks, hardware and study limitations. Do not generalize chart results to node-link graph reasoning without new evidence. Do not reproduce figures or full text from copyrighted works. Update this list with full relevant prior-art systems (e.g. TeDUB, GSK, PLUMB) before any formal novelty statement.
