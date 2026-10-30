@@ -19,7 +19,8 @@ This directory is the source of truth for research intent, testable claims and c
 9. [08 — Roadmap and acceptance](08-implementation-roadmap.md): staged delivery and tests.
 10. [09 — Decision log and uncertainties](09-decisions-and-risks.md): trade-offs, threats to validity and unresolved choices.
 11. [10 — Spatial mental models and auditory graph geometry](10-spatial-mental-models-and-graph-geometry.md): research evidence, stable auditory maps, hypotheses, and staged evaluation.
-12. [References](references.md): cited papers, standards and official APIs with links.
+12. [11 — Governing visual–auditory parity and screen-reader text](11-visual-auditory-parity-governing-rules.md): mandatory rules for matching non-text visual distinctions with sounds and assigning all graph text to NVDA.
+13. [References](references.md): cited papers, standards and official APIs with links.
 
 ## Terminology
 
@@ -37,6 +38,10 @@ This directory is the source of truth for research intent, testable claims and c
 - **Proposed:** an engineering or methodological decision awaiting validation.
 - **Unknown:** not yet measured, verified or decided.
 - **Observed locally:** requires date, environment, procedure, and a saved test artifact before claiming it.
+
+## Governing design rules
+
+**Accepted, mandatory:** [Visual–auditory semantic parity and screen-reader ownership of text](11-visual-auditory-parity-governing-rules.md). Same non-text node appearance means the same intrinsic node sound; distinct appearance means corresponding distinct sound. Graph text (especially node and edge labels) is conveyed via accessible text and the screen reader, not letter-derived tones. Current ID-to-pitch mapping is a documented nonconformance and must be replaced only with a new, versioned research mapping.
 
 ## Research integrity
 
