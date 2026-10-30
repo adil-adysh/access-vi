@@ -31,6 +31,8 @@
   }
 </script>
 
+<svelte:window onkeydown={handleKeydown} />
+
 <div class="explorer-container">
   <div class="card graph-header">
     <div class="graph-title-row">
@@ -48,17 +50,15 @@
     </div>
   </div>
 
-  <!-- Interactive Exploration Panel (Keyboard Accessible) -->
+  <!-- Interactive Exploration Panel -->
   <div
     class="card explorer-panel"
-    tabindex="0"
     role="region"
     aria-label={`Graph Exploration Panel for ${meta.name}. Use arrow keys to navigate.`}
-    onkeydown={handleKeydown}
   >
     <div class="panel-header">
       <span class="hint-text">
-        Keyboard focus active. Use <strong>Arrows</strong> to navigate, <strong>D</strong> for direction, <strong>R</strong> to replay.
+        Keyboard controls active. Use <strong>Arrows</strong> to navigate, <strong>D</strong> for direction, <strong>R</strong> to replay.
       </span>
       <button class="help-btn" onclick={onOpenHelp} aria-label="Open Keyboard Help Dialog">
         Keyboard Guide (?)
