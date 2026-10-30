@@ -6,6 +6,10 @@ The browser app must support a complete nonvisual journey: choose graph, learn c
 
 Target platform: **Windows 11 + Microsoft Edge + NVDA (latest stable)**. Automated axe checks are required during continuous integration, but manual verification with a live screen reader is necessary to validate speech fluency, forms mode switching, and auditory ergonomics.
 
+## Complete independent access as a research gate
+
+Under the accepted [faithful-access-first strategy](13-faithful-access-to-audio-first-research-strategy.md), a working NVDA interface is **necessary but not sufficient** to claim equal access. For each supported graph/diagram type, audit whether every meaningful source property can actually be found, inspected and verified without vision; record unsupported cases and missing labels explicitly. Stage 2 adds real-user validation of perception, independent navigation and structural reconstruction. Stage 3 audio-first aids must retain access to the faithful reference.
+
 ## Governing text-channel requirement
 
 See [mandatory visual–auditory parity rule](11-visual-auditory-parity-governing-rules.md). **All textual graph data is the responsibility of semantic HTML and NVDA/screen-reader announcements, including complete node and edge labels.** Do not convert label spelling into pitches or invoke a competing narrator. For nodes with matching visual shape/style, the non-speech intrinsic node cue must match; shape/style distinctions require separately mapped and consistently distinguishable cues. These requirements are not yet fully implemented.
