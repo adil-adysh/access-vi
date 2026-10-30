@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { ExperimentRunner } from '../../src/research/recording/ExperimentRunner.js';
 import { ExportService } from '../../src/research/recording/ExportService.js';
 import { IndexedDBStorage } from '../../src/storage/IndexedDBStorage.js';
+import { ExplorationController } from '../../src/domain/navigation/ExplorationController.js';
+import { DirectedGraph } from '../../src/domain/graph/Graph.js';
 
 describe('Experiment Runner & Session Lifecycle Integration', () => {
   it('walks through entire experiment session lifecycle and records metrics', async () => {
@@ -97,5 +99,142 @@ describe('Experiment Runner & Session Lifecycle Integration', () => {
     expect(retrieved).not.toBeNull();
     expect(retrieved?.participantId).toBe('P_PERSIST');
     expect(retrieved?.currentPhase).toBe('calibration');
+  });
+
+  it('rejects invalid state machine phase transitions and repeated submissions', () => {
+    const storage = new IndexedDBStorage();
+    const runner = new ExperimentRunner({ participantId: 'P_FSM' }, storage);
+
+    // Initial phase is consent: cannot skip straight to trials or calibration
+    expect(() => runner.completeCalibration()).toThrow(/invalid phase transition/i);
+    expect(() => runner.startTrialExploration()).toThrow(/invalid phase transition/i);
+    expect(() => runner.submitTrialResponse('A')).toThrow(/invalid phase transition/i);
+
+    runner.acceptConsent(); // now in calibration
+    expect(() => runner.acceptConsent()).toThrow(/invalid phase transition/i);
+    expect(() => runner.completeTraining()).toThrow(/invalid phase transition/i);
+
+    runner.completeCalibration(); // now in training
+    runner.completeTraining(); // now in trial_prep
+    expect(() => runner.finishExplorationProceedToResponse()).toThrow(/invalid phase transition/i);
+
+    runner.startTrialExploration(); // now in trial_active
+    expect(() => runner.startTrialExploration()).toThrow(/invalid phase transition/i);
+    expect(() => runner.submitTrialResponse('A')).toThrow(/invalid phase transition/i);
+
+    runner.finishExplorationProceedToResponse(); // now in trial_response
+    runner.submitTrialResponse('A'); // advances to trial_prep for next trial
+
+    // Cannot resubmit response for already submitted trial
+    expect(() => runner.submitTrialResponse('A')).toThrow(/invalid phase transition/i);
+  });
+
+  it('isolates experiment controller from external free exploration and imports', () => {
+    const storage = new IndexedDBStorage();
+    const runner = new ExperimentRunner({ participantId: 'P_ISOLATED' }, storage);
+
+    runner.acceptConsent();
+    runner.completeCalibration();
+    runner.completeTraining();
+    runner.startTrialExploration();
+
+    const experimentController = runner.getController();
+    const experimentGraphId = runner.getCurrentGraph().getMetadata().id;
+    const initialCondition = runner.getCurrentCondition();
+
+    expect(experimentController.getState().mode).toBe('experiment_trial');
+    expect(experimentController.getState().exposurePolicy.showAdjacencyTable).toBe(false);
+    expect(experimentController.getState().exposurePolicy.showGlobalMetrics).toBe(false);
+
+    // Create a separate free controller simulating external UI actions
+    const freeGraph = new DirectedGraph({ id: 'external-custom', name: 'External Custom Graph' });
+    freeGraph.addNode({ id: 'Z' });
+
+    const freeController = new ExplorationController(freeGraph, 'condition_c_spatial');
+
+    // Free controller actions should NOT mutate runner state or its controller
+    freeController.nextNeighbor();
+    expect(runner.getController().getState().graph.getMetadata().id).toBe(experimentGraphId);
+    expect(runner.getCurrentCondition()).toBe(initialCondition);
+    expect(runner.getSession().currentPhase).toBe('trial_active');
+  });
+
+  it('measures monotonic duration and separates exploration time from response time', async () => {
+    const storage = new IndexedDBStorage();
+    const runner = new ExperimentRunner({ participantId: 'P_TIMER' }, storage);
+
+    runner.acceptConsent();
+    runner.completeCalibration();
+    runner.completeTraining();
+
+    runner.startTrialExploration();
+    // Simulate short exploration delay
+    await new Promise((r) => setTimeout(r, 20));
+    runner.finishExplorationProceedToResponse();
+
+    // Simulate short response delay
+    await new Promise((r) => setTimeout(r, 20));
+    runner.submitTrialResponse('A');
+
+    const session = runner.getSession();
+    const trial = session.trials[0];
+    expect(trial.explorationDurationMs).toBeGreaterThan(0);
+    expect(trial.responseDurationMs).toBeGreaterThan(0);
+    expect(trial.durationMs).toBeGreaterThanOrEqual(trial.explorationDurationMs + trial.responseDurationMs);
+    expect(trial.graphHash).toBeDefined();
+    expect(trial.status).toBe('completed');
+  });
+
+  it('records trial interruptions when participant switches away or aborts', () => {
+    const storage = new IndexedDBStorage();
+    const runner = new ExperimentRunner({ participantId: 'P_INTERRUPT' }, storage);
+
+    runner.acceptConsent();
+    runner.completeCalibration();
+    runner.completeTraining();
+    runner.startTrialExploration();
+
+    runner.recordInterruption('Switched tab');
+
+    const log = runner.getController().getActionHistory();
+    const interruptAction = log.find((e) => e.actionType === 'CANCEL_PLAYBACK');
+    expect(interruptAction).toBeDefined();
+    expect(interruptAction?.details?.interruptionReason).toBe('Switched tab');
+  });
+
+  it('starts with empty workload ratings and accurately records raw NASA-TLX subscales', () => {
+    const storage = new IndexedDBStorage();
+    const runner = new ExperimentRunner({ participantId: 'P_WORKLOAD' }, storage);
+
+    // Initial session must not have fake participant scores
+    expect(runner.getSession().workloadRatings).toEqual({});
+
+    runner.acceptConsent();
+    runner.completeCalibration();
+    runner.completeTraining();
+
+    // Finish block 0 trials
+    const total = runner.getTotalTasksInBlock();
+    for (let i = 0; i < total; i++) {
+      runner.startTrialExploration();
+      runner.finishExplorationProceedToResponse();
+      runner.submitTrialResponse('A');
+    }
+
+    expect(runner.getSession().currentPhase).toBe('workload');
+
+    const submittedRating = {
+      mentalDemand: 6,
+      physicalDemand: 2,
+      temporalDemand: 4,
+      performance: 9,
+      effort: 5,
+      frustration: 3,
+      comments: 'Auditory sweep was easy to distinguish'
+    };
+
+    runner.submitWorkloadRating(submittedRating);
+    const cond = runner.getSession().conditionOrder[0];
+    expect(runner.getSession().workloadRatings[cond]).toEqual(submittedRating);
   });
 });

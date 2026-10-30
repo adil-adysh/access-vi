@@ -8,11 +8,11 @@
   let { onSubmit }: Props = $props();
 
   let mentalDemand = $state(5);
-  let physicalDemand = $state(2);
-  let temporalDemand = $state(4);
-  let performance = $state(7);
+  let physicalDemand = $state(5);
+  let temporalDemand = $state(5);
+  let performance = $state(5);
   let effort = $state(5);
-  let frustration = $state(3);
+  let frustration = $state(5);
   let comments = $state('');
 
   function handleSubmit(e: Event) {
@@ -30,9 +30,9 @@
 </script>
 
 <div class="card workload-card">
-  <h2>Condition Workload Assessment (NASA-TLX)</h2>
+  <h2>Condition Workload Assessment (Modified Raw NASA-TLX)</h2>
   <p class="desc">
-    Please rate your experience navigating and reasoning about the graph structure in the condition you just completed (scale from 1 to 10).
+    Please rate your experience navigating and reasoning about the graph structure in the condition you just completed (scale from 1 to 10 across 6 subscales).
   </p>
 
   <form onsubmit={handleSubmit}>

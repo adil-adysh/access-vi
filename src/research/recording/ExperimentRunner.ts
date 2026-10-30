@@ -5,6 +5,10 @@ import { TaskFactory } from '../../domain/tasks/taskFactory.js';
 import { Counterbalance } from './Counterbalance.js';
 import { IndexedDBStorage } from '../../storage/IndexedDBStorage.js';
 import { getSampleGraphs } from '../datasets/sampleGraphs.js';
+import {
+  DEFAULT_EXPERIMENT_POLICY,
+  DEFAULT_TRAINING_POLICY
+} from '../../domain/navigation/types.js';
 import type {
   ExperimentSession,
   TrialLog,
@@ -24,43 +28,53 @@ export class ExperimentRunner {
 
   private currentTasks: TaskDefinition[] = [];
   private activeTrialStartTime: number = 0;
-  private activeTrialMonotonicStart: number = 0;
+  private explorationMonotonicStart: number = 0;
+  private explorationDurationMs: number = 0;
+  private responseMonotonicStart: number = 0;
 
+  private lastPersistenceError: Error | null = null;
   private listeners: Set<ExperimentListener> = new Set();
 
   constructor(
     config: Partial<ExperimentConfig> = {},
     storage?: IndexedDBStorage,
-    controller?: ExplorationController
+    controller?: ExplorationController,
+    initialSession?: ExperimentSession
   ) {
     this.storage = storage ?? new IndexedDBStorage();
     this.allGraphs = getSampleGraphs();
-    this.controller = controller ?? new ExplorationController();
+    this.controller = controller ?? new ExplorationController(
+      undefined,
+      'condition_a_speech',
+      'training',
+      DEFAULT_TRAINING_POLICY
+    );
 
-    const participantId = config.participantId ?? `P_${Math.floor(100 + Math.random() * 900)}`;
-    const conditionOrder =
-      config.conditionOrder ?? Counterbalance.getOrderForParticipant(participantId);
+    if (initialSession) {
+      this.session = initialSession;
+      this.setupControllerForCurrentTask();
+    } else {
+      const participantId = config.participantId ?? `P_${Math.floor(100 + Math.random() * 900)}`;
+      const conditionOrder =
+        config.conditionOrder ?? Counterbalance.getOrderForParticipant(participantId);
 
-    const sessionId = `S_${Date.now()}_${participantId}`;
+      const sessionId = `S_${Date.now()}_${participantId}`;
 
-    this.session = {
-      schemaVersion: '1.0.0',
-      sessionId,
-      participantId,
-      appVersion: '0.1.0',
-      sonificationVersion: '1.0.0',
-      conditionOrder,
-      currentPhase: 'consent',
-      currentBlockIndex: 0,
-      currentTrialIndex: 0,
-      startedAt: Date.now(),
-      trials: [],
-      workloadRatings: {
-        condition_a_speech: { mentalDemand: 5, physicalDemand: 2, temporalDemand: 5, performance: 7, effort: 5, frustration: 3 },
-        condition_b_non_spatial: { mentalDemand: 5, physicalDemand: 2, temporalDemand: 5, performance: 7, effort: 5, frustration: 3 },
-        condition_c_spatial: { mentalDemand: 5, physicalDemand: 2, temporalDemand: 5, performance: 7, effort: 5, frustration: 3 }
-      }
-    };
+      this.session = {
+        schemaVersion: '1.0.0',
+        sessionId,
+        participantId,
+        appVersion: '0.1.0',
+        sonificationVersion: '1.0.0',
+        conditionOrder,
+        currentPhase: 'consent',
+        currentBlockIndex: 0,
+        currentTrialIndex: 0,
+        startedAt: Date.now(),
+        trials: [],
+        workloadRatings: {}
+      };
+    }
   }
 
   public getSession(): ExperimentSession {
@@ -71,9 +85,13 @@ export class ExperimentRunner {
     return this.controller;
   }
 
+  public getLastPersistenceError(): Error | null {
+    return this.lastPersistenceError;
+  }
+
   public getCurrentCondition(): ExperimentalConditionId {
     if (this.session.currentPhase === 'training') {
-      return 'condition_a_speech'; // Training starts with baseline speech
+      return 'condition_a_speech';
     }
     const idx = Math.min(this.session.currentBlockIndex, this.session.conditionOrder.length - 1);
     return this.session.conditionOrder[idx];
@@ -99,6 +117,9 @@ export class ExperimentRunner {
   }
 
   public acceptConsent(): void {
+    if (this.session.currentPhase !== 'consent') {
+      throw new Error(`Invalid phase transition: cannot accept consent from phase "${this.session.currentPhase}".`);
+    }
     this.session = {
       ...this.session,
       currentPhase: 'calibration'
@@ -107,11 +128,15 @@ export class ExperimentRunner {
   }
 
   public completeCalibration(): void {
+    if (this.session.currentPhase !== 'calibration') {
+      throw new Error(`Invalid phase transition: cannot complete calibration from phase "${this.session.currentPhase}".`);
+    }
     this.session = {
       ...this.session,
       currentPhase: 'training'
     };
     const trainingGraph = this.allGraphs['graph-training'];
+    this.controller.setExposurePolicy(DEFAULT_TRAINING_POLICY);
     this.controller.setGraph(trainingGraph);
     this.controller.setCondition('condition_a_speech');
     this.controller.setMode('training');
@@ -119,6 +144,10 @@ export class ExperimentRunner {
   }
 
   public completeTraining(): void {
+    if (this.session.currentPhase !== 'training') {
+      throw new Error(`Invalid phase transition: cannot complete training from phase "${this.session.currentPhase}".`);
+    }
+    this.controller.cancelPlayback();
     this.session = {
       ...this.session,
       currentPhase: 'trial_prep',
@@ -130,11 +159,16 @@ export class ExperimentRunner {
   }
 
   public startTrialExploration(): void {
+    if (this.session.currentPhase !== 'trial_prep') {
+      throw new Error(`Invalid phase transition: cannot start exploration from phase "${this.session.currentPhase}".`);
+    }
     this.activeTrialStartTime = Date.now();
-    this.activeTrialMonotonicStart =
+    this.explorationMonotonicStart =
       typeof performance !== 'undefined' ? performance.now() : Date.now();
 
     this.controller.resetActionHistory();
+    this.controller.setMode('experiment_trial');
+    this.controller.setExposurePolicy(DEFAULT_EXPERIMENT_POLICY);
     this.session = {
       ...this.session,
       currentPhase: 'trial_active'
@@ -143,6 +177,14 @@ export class ExperimentRunner {
   }
 
   public finishExplorationProceedToResponse(): void {
+    if (this.session.currentPhase !== 'trial_active') {
+      throw new Error(`Invalid phase transition: cannot finish exploration from phase "${this.session.currentPhase}".`);
+    }
+    const nowMonotonic = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    this.explorationDurationMs = Math.max(0, nowMonotonic - this.explorationMonotonicStart);
+    this.responseMonotonicStart = nowMonotonic;
+
+    this.controller.cancelPlayback();
     this.session = {
       ...this.session,
       currentPhase: 'trial_response'
@@ -153,15 +195,20 @@ export class ExperimentRunner {
   public submitTrialResponse(
     answer: string | boolean | string[] | Array<{ source: string; target: string }>
   ): TaskEvaluationResult {
+    if (this.session.currentPhase !== 'trial_response') {
+      throw new Error(`Invalid phase transition: cannot submit response from phase "${this.session.currentPhase}".`);
+    }
+
     const nowMonotonic = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    const durationMs = nowMonotonic - this.activeTrialMonotonicStart;
+    const responseDurationMs = Math.max(0, nowMonotonic - this.responseMonotonicStart);
+    const durationMs = this.explorationDurationMs + responseDurationMs;
     const task = this.getCurrentTask()!;
     const graph = this.getCurrentGraph();
 
     const submission: TaskSubmission = {
       taskId: task.id,
       answer,
-      startTimeMonotonicMs: this.activeTrialMonotonicStart,
+      startTimeMonotonicMs: this.explorationMonotonicStart,
       endTimeMonotonicMs: nowMonotonic,
       durationMs
     };
@@ -178,9 +225,10 @@ export class ExperimentRunner {
       trialId: `trial_${this.session.currentBlockIndex}_${this.session.currentTrialIndex}_${Date.now()}`,
       blockIndex: this.session.currentBlockIndex,
       trialIndexInBlock: this.session.currentTrialIndex,
-      isTraining: this.session.currentPhase === 'training',
+      isTraining: false,
       condition: this.getCurrentCondition(),
       graphId: graph.getMetadata().id,
+      graphHash: graph.computeHash(),
       graphMetrics: graph.getMetadata().difficultyMetrics,
       task,
       submission,
@@ -189,10 +237,20 @@ export class ExperimentRunner {
       startTimestamp: this.activeTrialStartTime,
       endTimestamp: Date.now(),
       durationMs,
+      explorationDurationMs: this.explorationDurationMs,
+      responseDurationMs,
       replayCount,
       inspectionCount,
       backtrackCount,
-      traversalCount
+      traversalCount,
+      status: 'completed',
+      audioMappingVersion: this.session.sonificationVersion,
+      audioSettings: {
+        waveform: 'sine',
+        playbackSpeed: 1.0,
+        masterVolume: 0.7,
+        sonificationVersion: this.session.sonificationVersion
+      }
     };
 
     this.session = {
@@ -222,6 +280,10 @@ export class ExperimentRunner {
   }
 
   public submitWorkloadRating(rating: WorkloadRating): void {
+    if (this.session.currentPhase !== 'workload') {
+      throw new Error(`Invalid phase transition: cannot submit workload rating from phase "${this.session.currentPhase}".`);
+    }
+
     const currentCondition = this.getCurrentCondition();
     this.session = {
       ...this.session,
@@ -250,6 +312,10 @@ export class ExperimentRunner {
   }
 
   public finishRestProceedToNextBlock(): void {
+    if (this.session.currentPhase !== 'rest') {
+      throw new Error(`Invalid phase transition: cannot finish rest from phase "${this.session.currentPhase}".`);
+    }
+
     const nextBlockIndex = this.session.currentBlockIndex + 1;
     this.session = {
       ...this.session,
@@ -259,6 +325,12 @@ export class ExperimentRunner {
     };
     this.prepareBlock(nextBlockIndex);
     this.persistAndNotify();
+  }
+
+  public recordInterruption(reason: string): void {
+    if (this.session.currentPhase === 'trial_active') {
+      this.controller.cancelPlayback(reason);
+    }
   }
 
   public subscribe(listener: ExperimentListener): () => void {
@@ -280,6 +352,8 @@ export class ExperimentRunner {
   private setupControllerForCurrentTask(): void {
     const graph = this.getCurrentGraph();
     const condition = this.getCurrentCondition();
+    this.controller.cancelPlayback();
+    this.controller.setExposurePolicy(DEFAULT_EXPERIMENT_POLICY);
     this.controller.setGraph(graph);
     this.controller.setCondition(condition);
     this.controller.setMode('experiment_trial');
@@ -287,6 +361,7 @@ export class ExperimentRunner {
 
   private persistAndNotify(): void {
     this.storage.saveSession(this.session).catch((err) => {
+      this.lastPersistenceError = err instanceof Error ? err : new Error(String(err));
       console.warn('Failed to save session to IndexedDB:', err);
     });
 

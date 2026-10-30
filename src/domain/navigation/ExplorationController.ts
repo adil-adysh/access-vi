@@ -7,8 +7,10 @@ import type {
   ExperimentalConditionId,
   NodeInspection,
   NavigationLogEntry,
-  NavigationActionType
+  NavigationActionType,
+  InformationExposurePolicy
 } from './types.js';
+import { DEFAULT_FREE_POLICY } from './types.js';
 
 export type StateChangeListener = (state: NavigationState, action: NavigationActionType) => void;
 export type PlaybackRequestListener = (state: NavigationState, action: NavigationActionType) => void;
@@ -29,6 +31,7 @@ export class ExplorationController {
   private condition: ExperimentalConditionId = 'condition_a_speech';
   private mode: ExplorationMode = 'free_exploration';
   private inspection: NodeInspection | null = null;
+  private exposurePolicy: InformationExposurePolicy;
 
   private readonly sessionStartMonotonic: number;
   private actionLog: NavigationLogEntry[] = [];
@@ -40,11 +43,13 @@ export class ExplorationController {
   constructor(
     initialGraph?: DirectedGraph,
     initialCondition: ExperimentalConditionId = 'condition_a_speech',
-    initialMode: ExplorationMode = 'free_exploration'
+    initialMode: ExplorationMode = 'free_exploration',
+    initialPolicy: InformationExposurePolicy = DEFAULT_FREE_POLICY
   ) {
     this.sessionStartMonotonic = typeof performance !== 'undefined' ? performance.now() : Date.now();
     this.condition = initialCondition;
     this.mode = initialMode;
+    this.exposurePolicy = initialPolicy;
 
     if (initialGraph && initialGraph.getNodeIds().length > 0) {
       this.graph = initialGraph;
@@ -70,11 +75,22 @@ export class ExplorationController {
       playbackState: this.playbackState,
       condition: this.condition,
       mode: this.mode,
-      inspection: this.inspection
+      inspection: this.inspection,
+      exposurePolicy: this.exposurePolicy
     };
   }
 
+  public getExposurePolicy(): InformationExposurePolicy {
+    return this.exposurePolicy;
+  }
+
+  public setExposurePolicy(policy: InformationExposurePolicy): void {
+    this.exposurePolicy = policy;
+    this.emitStateChange('SET_GRAPH');
+  }
+
   public setGraph(graph: DirectedGraph, startNodeId?: string): void {
+    this.cancelPlayback();
     const nodeIds = graph.getNodeIds();
     if (nodeIds.length === 0) {
       throw new Error('Cannot set an empty graph for exploration.');
@@ -90,13 +106,17 @@ export class ExplorationController {
     this.updateInspection();
 
     this.logAction('SET_GRAPH', { graphId: graph.getMetadata().id, startNodeId: this.startNodeId });
-    this.emitAnnouncement(`Loaded graph: ${graph.getMetadata().name}. Focused on node ${this.currentNodeId}.`, 'polite');
+    const displayName = this.exposurePolicy.anonymizedGraphTitle ?? graph.getMetadata().name;
+    this.emitAnnouncement(`Loaded graph: ${displayName}. Focused on node ${this.currentNodeId}.`, 'polite');
     this.emitStateChange('SET_GRAPH');
   }
 
   public setCondition(condition: ExperimentalConditionId): void {
-    this.condition = condition;
-    this.emitStateChange('SET_GRAPH');
+    if (this.condition !== condition) {
+      this.cancelPlayback();
+      this.condition = condition;
+      this.emitStateChange('SET_GRAPH');
+    }
   }
 
   public setMode(mode: ExplorationMode): void {
@@ -254,6 +274,10 @@ export class ExplorationController {
   }
 
   public jumpToNode(nodeId: string): boolean {
+    if (!this.exposurePolicy.allowNodeJumping) {
+      this.emitAnnouncement('Direct node jumping is disabled in this mode.', 'assertive');
+      return false;
+    }
     if (!this.graph.hasNode(nodeId)) {
       this.emitAnnouncement(`Cannot jump: Node ${nodeId} does not exist.`, 'assertive');
       return false;
@@ -280,11 +304,15 @@ export class ExplorationController {
     this.emitPlaybackRequest('REPLAY');
   }
 
-  public cancelPlayback(): void {
+  public cancelPlayback(reason?: string): void {
     this.playbackState = 'interrupted';
-    this.logAction('CANCEL_PLAYBACK', { currentNode: this.currentNodeId });
+    this.logAction('CANCEL_PLAYBACK', {
+      currentNode: this.currentNodeId,
+      ...(reason ? { interruptionReason: reason } : {})
+    });
     this.emitAnnouncement('Audio playback cancelled.', 'polite');
     this.emitStateChange('CANCEL_PLAYBACK');
+    this.emitPlaybackRequest('CANCEL_PLAYBACK');
   }
 
   public inspectCurrentNode(): NodeInspection {
@@ -417,7 +445,7 @@ export class ExplorationController {
     };
   }
 
-  private logAction(actionType: NavigationActionType, details?: Record<string, unknown>): void {
+  public logAction(actionType: NavigationActionType, details?: Record<string, unknown>): void {
     const now = Date.now();
     const monotonicOffset =
       (typeof performance !== 'undefined' ? performance.now() : now) - this.sessionStartMonotonic;

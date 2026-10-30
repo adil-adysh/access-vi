@@ -46,6 +46,38 @@ export interface NavigationLogEntry {
   readonly details?: Record<string, unknown>;
 }
 
+export interface InformationExposurePolicy {
+  readonly showGlobalMetrics: boolean;
+  readonly showAdjacencyTable: boolean;
+  readonly showGraphDescription: boolean;
+  readonly allowNodeJumping: boolean;
+  readonly anonymizedGraphTitle?: string;
+}
+
+export const DEFAULT_FREE_POLICY: InformationExposurePolicy = {
+  showGlobalMetrics: true,
+  showAdjacencyTable: true,
+  showGraphDescription: true,
+  allowNodeJumping: true,
+  anonymizedGraphTitle: undefined
+};
+
+export const DEFAULT_EXPERIMENT_POLICY: InformationExposurePolicy = {
+  showGlobalMetrics: false,
+  showAdjacencyTable: false,
+  showGraphDescription: false,
+  allowNodeJumping: false,
+  anonymizedGraphTitle: 'Study Stimulus Graph'
+};
+
+export const DEFAULT_TRAINING_POLICY: InformationExposurePolicy = {
+  showGlobalMetrics: false,
+  showAdjacencyTable: false,
+  showGraphDescription: true,
+  allowNodeJumping: false,
+  anonymizedGraphTitle: 'Training Practice Graph'
+};
+
 export interface NavigationState {
   readonly graph: DirectedGraph;
   readonly currentNodeId: string;
@@ -57,4 +89,5 @@ export interface NavigationState {
   readonly condition: ExperimentalConditionId;
   readonly mode: ExplorationMode;
   readonly inspection: NodeInspection | null;
+  readonly exposurePolicy: InformationExposurePolicy;
 }

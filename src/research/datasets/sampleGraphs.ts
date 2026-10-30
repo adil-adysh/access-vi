@@ -114,8 +114,8 @@ export function getSampleGraphs(): Record<string, DirectedGraph> {
   const gTraining = GraphParser.parseDOT(TRAINING_GRAPH_DOT, 'graph-training');
   gTraining.setMetadata({
     id: 'graph-training',
-    name: 'Training Graph (Simple Branch)',
-    description: '4-node graph for learning navigation controls',
+    name: 'Practice Graph 1',
+    description: '4-node directed practice graph',
     isTraining: true,
     difficultyMetrics: gTraining.computeDifficultyMetrics()
   });
@@ -123,8 +123,8 @@ export function getSampleGraphs(): Record<string, DirectedGraph> {
   const gPractice = GraphParser.parseDOT(PRACTICE_CYCLE_GRAPH_DOT, 'graph-practice-cycle');
   gPractice.setMetadata({
     id: 'graph-practice-cycle',
-    name: 'Practice Graph (Cycle & Branch)',
-    description: '4-node graph with cycle A-B-C-A',
+    name: 'Practice Graph 2',
+    description: '4-node directed practice graph',
     isTraining: true,
     difficultyMetrics: gPractice.computeDifficultyMetrics()
   });
@@ -132,8 +132,8 @@ export function getSampleGraphs(): Record<string, DirectedGraph> {
   const gExp1 = GraphParser.parseDOT(EXP_GRAPH_1_DOT, 'graph-exp-1');
   gExp1.setMetadata({
     id: 'graph-exp-1',
-    name: 'Experiment Graph 1 (Branching & Convergence)',
-    description: '6-node diamond and dual fork structure',
+    name: 'Study Graph 1',
+    description: '6-node directed stimulus graph',
     isTraining: false,
     difficultyMetrics: gExp1.computeDifficultyMetrics()
   });
@@ -141,8 +141,8 @@ export function getSampleGraphs(): Record<string, DirectedGraph> {
   const gExp2 = GraphParser.parseDOT(EXP_GRAPH_2_DOT, 'graph-exp-2');
   gExp2.setMetadata({
     id: 'graph-exp-2',
-    name: 'Experiment Graph 2 (Feedback Cycle Network)',
-    description: '7-node structure with B-C cycle and convergent exit',
+    name: 'Study Graph 2',
+    description: '7-node directed stimulus graph',
     isTraining: false,
     difficultyMetrics: gExp2.computeDifficultyMetrics()
   });
@@ -150,8 +150,8 @@ export function getSampleGraphs(): Record<string, DirectedGraph> {
   const gExp3 = GraphParser.parseDOT(EXP_GRAPH_3_DOT, 'graph-exp-3');
   gExp3.setMetadata({
     id: 'graph-exp-3',
-    name: 'Experiment Graph 3 (Multi-Path Hierarchy)',
-    description: '9-node multi-layered directed graph',
+    name: 'Study Graph 3',
+    description: '9-node directed stimulus graph',
     isTraining: false,
     difficultyMetrics: gExp3.computeDifficultyMetrics()
   });
@@ -159,8 +159,8 @@ export function getSampleGraphs(): Record<string, DirectedGraph> {
   const gTransfer = GraphParser.parseDOT(TRANSFER_GRAPH_DOT, 'graph-transfer');
   gTransfer.setMetadata({
     id: 'graph-transfer',
-    name: 'Transfer Evaluation Graph',
-    description: '8-node complex interconnected graph',
+    name: 'Study Graph Transfer',
+    description: '8-node directed stimulus graph',
     isTraining: false,
     difficultyMetrics: gTransfer.computeDifficultyMetrics()
   });
