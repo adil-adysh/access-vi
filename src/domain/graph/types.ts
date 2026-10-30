@@ -2,10 +2,13 @@
  * Domain types for directed graph representation, metadata, and difficulty metrics.
  */
 
+import type { NodePresentation, EdgePresentation } from '../presentation/types.js';
+
 export interface GraphNode {
   readonly id: string;
   readonly label?: string;
   readonly category?: string;
+  readonly presentation?: NodePresentation;
   readonly metadata?: Record<string, unknown>;
 }
 
@@ -15,6 +18,7 @@ export interface GraphEdge {
   readonly target: string;
   readonly label?: string;
   readonly category?: string;
+  readonly presentation?: EdgePresentation;
   readonly metadata?: Record<string, unknown>;
 }
 

@@ -1,5 +1,6 @@
 import { DirectedGraph } from './Graph.js';
 import type { GraphNode, GraphEdge, GraphMetadata, SerializedGraph } from './types.js';
+import { normalizeShape, type NodePresentation, type EdgePresentation, type EdgeGeometryVariation } from '../presentation/types.js';
 
 export interface ParseError {
   readonly line?: number;
@@ -367,12 +368,24 @@ export class GraphParser {
             }
 
             const edgeId = `e_${source}_${target}_${edgeCounter++}`;
+            const geomVar = edgeAttrs.geometryVariation as EdgeGeometryVariation | undefined;
+            const edgePresentation: EdgePresentation | undefined =
+              edgeAttrs.geometryVariation || edgeAttrs.style || edgeAttrs.color
+                ? {
+                    lineStyle: edgeAttrs.style as any,
+                    strokeColor: edgeAttrs.color,
+                    geometryVariation: geomVar,
+                    ariaDescription: edgeAttrs.description
+                  }
+                : undefined;
+
             edgesList.push({
               id: edgeId,
               source,
               target,
               label: edgeAttrs.label,
               category: edgeAttrs.category,
+              presentation: edgePresentation,
               metadata: edgeAttrs
             });
           }
@@ -384,10 +397,22 @@ export class GraphParser {
           }
 
           const existing = nodesMap.get(firstNode);
+          const rawShape = nodeAttrs.shape || (existing?.presentation?.shape as string | undefined);
+          const normalized = rawShape ? normalizeShape(rawShape) : undefined;
+          const nodePresentation: NodePresentation | undefined = normalized
+            ? {
+                shape: normalized.shape,
+                fillColor: nodeAttrs.fillcolor || nodeAttrs.color,
+                strokeColor: nodeAttrs.bordercolor || nodeAttrs.color,
+                ariaDescription: nodeAttrs.description
+              }
+            : existing?.presentation;
+
           nodesMap.set(firstNode, {
             id: firstNode,
             label: nodeAttrs.label || existing?.label || firstNode,
             category: nodeAttrs.category || existing?.category,
+            presentation: nodePresentation,
             metadata: { ...(existing?.metadata ?? {}), ...nodeAttrs }
           });
         }
@@ -432,6 +457,9 @@ export class GraphParser {
       }
       if (node.category) {
         attrs.push(`category="${node.category.replace(/"/g, '\\"')}"`);
+      }
+      if (node.presentation?.shape) {
+        attrs.push(`shape="${node.presentation.shape.replace(/"/g, '\\"')}"`);
       }
       const attrStr = attrs.length > 0 ? ` [${attrs.join(', ')}]` : '';
       lines.push(`  "${node.id}"${attrStr};`);

@@ -36,6 +36,7 @@ export class DirectedGraph {
     this.inner.addNode(node.id, {
       label: node.label ?? node.id,
       category: node.category,
+      presentation: node.presentation,
       metadata: node.metadata ?? {}
     });
   }
@@ -53,6 +54,7 @@ export class DirectedGraph {
     this.inner.addEdgeWithKey(edge.id, edge.source, edge.target, {
       label: edge.label,
       category: edge.category,
+      presentation: edge.presentation,
       metadata: edge.metadata ?? {}
     });
   }
@@ -72,6 +74,7 @@ export class DirectedGraph {
       id: nodeId,
       label: attrs.label,
       category: attrs.category,
+      presentation: attrs.presentation,
       metadata: attrs.metadata
     };
   }
@@ -95,6 +98,7 @@ export class DirectedGraph {
         target,
         label: attrs.label,
         category: attrs.category,
+        presentation: attrs.presentation,
         metadata: attrs.metadata
       };
     });

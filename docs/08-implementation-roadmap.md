@@ -48,6 +48,14 @@ Accessible home/explorer/experiment/results/settings, extensive manual NVDA chec
 
 Freeze mapping/protocol version, stimulus balancing, ethics/consent process, analysis plan, study sample justification, QA artifacts. **Done when:** a separate research-readiness checklist is approved; **not** when build/test commands merely pass.
 
+## Phase 9 — Visual–Auditory Semantic Parity Model
+
+Establish an explicit, typed, shared presentation model where non-speech audio communicates meaningful non-text visual distinctions (shapes: circle, rectangle, diamond) while all textual information belongs strictly to NVDA via semantic HTML. **Done when:** equal visual appearance produces identical intrinsic audio parameters, node and edge semantics are completely independent, and audio never encodes arbitrary node IDs as pitches.
+
+## Phase 10 — Sound Mapping Laboratory & Perceptual Validation
+
+Build an accessible, interactive laboratory environment to test whether users reliably perceive shape timbres, distinguish category equivalence from node identity, identify connection directions, and exhibit geometry invariance. **Done when:** automated parity tests pass across all event categories, lab trials record timing and perceived meanings, and existing A/B/C research data remains untouched.
+
 ## Required commands/checks (adapt to actual project scripts)
 
 - Typecheck and lint.
