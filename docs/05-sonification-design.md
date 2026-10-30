@@ -1,5 +1,9 @@
 # Sonification system design (version 0.1 proposal)
 
+## Research-sequence scope
+
+The [governing research strategy](13-faithful-access-to-audio-first-research-strategy.md) requires (1) a complete, faithful mapping of supported source information, then (2) demonstrated perceptual/structural access, before (3) testing audio-first optimization. The sound categories in this document are candidate mechanisms for the **faithful reference**, not evidence of cognitive benefit. Later optional interaction aids must be explicitly distinguished from diagram-source data, and the faithful mode must remain available. The legacy research conditions stay versioned.
+
 ## Normative governing rule
 
 **This document is subordinate to [visual–auditory semantic parity and screen-reader ownership of text](11-visual-auditory-parity-governing-rules.md).** For a given diagram, equal intrinsic non-text appearance requires equal intrinsic non-speech node cues; visually distinct shape/style categories require corresponding distinct auditory cues. Node and edge labels, graph titles/descriptions, annotations and other text are announced by the screen reader through semantic accessibility APIs, **not encoded into musical frequencies**. Differences in connectivity may change the edge enumeration without changing the intrinsic node sound. The legacy current implementation violates this because node IDs determine pitch; correct in a separately versioned mapping, without silently changing study conditions.
