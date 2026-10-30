@@ -31,14 +31,29 @@ For first experiments, propose **local neighbor panorama**: a consistent left-to
 
 Important: stereo panning does not automatically provide front/back or distance; HRTF is a separate later experiment.
 
-## Scheduling and safety
+## Scheduling, Safety & Reliable Cancellation
 
 - Construct or resume AudioContext only after an explicit user gesture.
 - Schedule via AudioContext time; avoid depending on JavaScript timers for precise tone onset.
-- Smooth gain ramps to prevent clicks; constrain master gain and repeated-playback rate.
-- All active voices and timers must cancel immediately on Stop, navigation invalidation and trial end.
+- **Immediate Cancellation**: Active audio handles stop immediately on user command (Escape, Stop Audio button, tab switch, graph load, or trial finish).
+- **Promise Settling**: Cancelled scheduling promises resolve immediately via `settlePromise()`, preventing hanging asynchronous chains.
+- **Node Disconnection**: Future scheduled oscillator and gain nodes are disconnected from the audio graph upon cancellation so stale notes cannot sound if the context advances.
+- **Click-Free Gain Ramping**: All cancellations and note terminations apply an exponential gain ramp down to zero (e.g. over 0.01s - 0.03s) to eliminate harsh acoustic clicks or DC transients.
 - Never autoplay speech or earcons on loading a new page; warn before audio.
 - Provide headphones check, comfortable volume, left/right swap test and mono-accessible alternatives.
+
+## Experimental Parity Verification
+
+In automated test suite (`tests/unit/audio.test.ts`), complete audio-event traces are captured for Condition B and Condition C across all semantic event types (`NODE_FOCUS`, `TRAVERSE_OUTGOING`, `TRAVERSE_INCOMING`, `NEIGHBOR_LIST`, `EDGE_RETURN`, `AUDIO_FEEDBACK`). The suite verifies:
+1. Identical tone counts per event.
+2. Identical frequencies (Hz), duration (seconds), and relative time offsets.
+3. Identical oscillator waveforms and gain envelope settings.
+4. Variations exist exclusively in the stereo azimuth fields (`pan` and `endPan`), which are 0.0 in Condition B and spread across [-0.75, +0.75] in Condition C.
+
+### Inherent Psychoacoustic Differences
+Even with identical frequencies, gains, and timings in software:
+- **Binaural Masking Level Difference (BMLD)**: Panned auditory signals in Condition C may be subjectively perceived as slightly louder or more distinct against ambient room noise than identical signals presented diotically (centered in both ears) in Condition B.
+- **Auditory Fatigue & Spatial Segregation**: Spatial separation enables perceptual stream segregation (the "cocktail party effect"), which is the intended experimental hypothesis under evaluation, but must not be augmented by accidental pitch or amplitude cues.
 
 ## Speech coordination
 
@@ -47,11 +62,5 @@ Use semantic text for node/edge names; let NVDA read native controls when possib
 ## Audio mapping provenance
 
 Version every mapping (ID, oscillator waveforms, pitch units, durations, pan function, ordering, normalization, gain). Save mapping ID with each trial. Any post-pilot change starts a new experiment configuration and needs new training. Retain reproducible generated audio-event traces for automated tests.
-
-## Validation
-
-Unit tests: same graph/navigation event -> same semantic event list; B/C identical non-pan parameters; deterministic order and pan; replay equality; cancellation; no answer-leaking structural classifications in trial event streams.
-
-Manual tests: can participants distinguish event types, incoming vs outgoing, neighbor slots, and stereo laterality? Does NVDA speech mask the tones? Is navigation fatigue tolerable? Is the pan meaningful beyond decorative movement?
 
 See [research questions](03-research-questions.md), [accessibility](07-accessibility.md), and Web Audio [R8].

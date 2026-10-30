@@ -1,67 +1,71 @@
-# Technical architecture — initial plan
+# Technical architecture — implemented design and boundaries
 
-## Stack (proposed, not a claim of current implementation)
+## Stack
 
-- Svelte 5, TypeScript, Vite.
-- Graphology directed graph, JSON import and a tested DOT importer.
-- Web Audio API oscillator/gain/envelope nodes and StereoPannerNode; no AudioWorklet until DSP needs require it.
-- Semantic HTML, dedicated keyboard interaction, screen-reader coordination, optional Web Speech API.
-- IndexedDB for local sessions, JSON/CSV export, no initial remote service.
-- Vitest for domain/audio tests; Playwright and axe-core for browser/accessibility checks.
+- Svelte 5 (with modern runes `$state`, `$derived`, `$effect`), TypeScript 5, Vite 6.
+- Pure domain DirectedGraph data structure, JSON import and robust Graphviz DOT importer (with quoted identifiers, whitespace support, and attribute preservation).
+- Web Audio API synthesizer (`ToneSynthesizer`) using oscillator/gain nodes and `StereoPannerNode` with exponential click-free ramps and active node tracking for instantaneous cancellation.
+- Semantic HTML, dedicated keyboard interaction region (`tabindex="0"`, `role="region"`), screen-reader live region coordination (`aria-live="polite"` and `"assertive"`).
+- IndexedDB via `IndexedDBStorage` for durable session persistence, JSON and CSV export (`ExportService`), clear session controls.
+- Vitest for domain, graph algorithm, audio scheduling, and state machine integration tests; Playwright and axe-core for full browser accessibility and workflow verification with strict WCAG 2.2 AA contrast compliance.
 
 Reference the Web Audio API [R8], WAI keyboard practices [R7] and WCAG 2.2 [R9].
 
-## Boundaries
+## Boundaries and Controller Separation
 
-**Import -> ValidatedGraph -> GraphAnalysis -> ExplorationController -> SemanticAudioEvent[] -> RenderingStrategy -> WebAudioEngine**
+In earlier iterations, the free exploration view and research runner shared controller state. In the hardened architecture, controllers are strictly isolated:
 
-Parallel, independent branch: **ExperimentRunner -> TaskOracle/Scoring -> EventRecorder -> LocalStore -> Export**.
+```
+[Free Exploration View]               [Research Experiment View]
+        │                                         │
+        ▼                                         ▼
+Free ExplorationController               ExperimentRunner
+  • DEFAULT_FREE_POLICY                    • Isolated ExplorationController
+  • Complete textual adjacency tables      • DEFAULT_EXPERIMENT_POLICY
+  • Interactive node jumping               • Strict phase state machine
+  • Free condition toggling                • Anonymized graph metadata
+                                           • Monotonic timing (exploration vs response)
+```
 
-UI listens to exploration/experiment state and emits user intent; UI components do not calculate graph topology or directly synthesize audio.
+### Information Exposure Policy
 
-### Domain models (conceptual)
+To prevent experimental confounds and leakage between free exploration and recorded trials, an explicit `InformationExposurePolicy` governs UI rendering:
 
-- Node { id, label?, category?, attributes? }
-- Edge { id, sourceId, targetId, label?, category? } with explicit *direction*.
-- GraphSnapshot { schemaVersion, graphId, seed?, nodes[], edges[] }.
-- ExplorationState { focusedNodeId, selectedNeighbor, history[], condition, playbackStatus }.
-- SemanticAudioEvent { eventType, nodeId?, edgeId?, direction?, relativeOrder?, timeOffsetMs }.
-- ConditionConfig { id: A|B|C, mappingVersion, speechPolicy, panPolicy }.
-- TrialRecord { schemaVersion, participantCode, graphId, graphHash, taskId, condition, timestamps, response, oracle, eventLog, configVersions }.
+- `showAdjacencyTable`: Render complete node connection matrix (`false` during trials).
+- `showGlobalMetrics`: Display cycle presence/count and density badges (`false` during trials).
+- `allowNodeJumping`: Allow direct jump navigation to arbitrary nodes (`false` during trials).
+- `anonymizeGraphName`: Anonymize graph titles (e.g. "Study Graph") to prevent semantic leakage of topology.
 
-These are interfaces to refine through implementation, not deployed schemas.
+### Domain Models
 
-## Graph domain
+- **DirectedGraph**: Directed multigraph representation with immutable node/edge lists, degree computations, Johnson's elementary cycle enumeration, 3-color DFS cycle existence detection, reachability checks, and deterministic FNV-1a structural hashing (`computeHash()`).
+- **ExplorationController**: Testable state machine handling neighbor traversal, direction toggling, back-tracking, replaying, inspecting, and audio cancellation.
+- **SequenceScheduler & ToneSynthesizer**: Web Audio sequence scheduling where cancelled handles settle promises immediately (`settlePromise()`), disconnect future scheduled notes, and smoothly ramp gain to avoid acoustic clicks.
+- **ExperimentRunner**: Controls session lifecycle (`consent` -> `calibration` -> `training` -> `trial_prep` -> `trial_active` -> `trial_response` -> `workload` -> `rest` -> `completed`). Rejects invalid phase transitions and duplicate submissions.
+- **TaskEvaluator**: Deterministic task battery evaluation (branching, convergence, reachability with negative cases, cycle detection, mental model reconstruction).
 
-Use explicit directed edges and validate duplicate IDs, nonexistent endpoints, malformed DOT, empty graphs and unsupported attributes. Directed reachability, cycle tests and edge reconstruction scoring live in pure domain code. Generate graph fixtures from seeds, then persist exact snapshots and hashes.
+## Graph Algorithms and Validation
 
-Oracle correctness must not depend on the audio strategy or the UI's current cursor.
+1. **Cycle Enumeration (Johnson's Algorithm)**:
+   - Identifies all simple directed elementary cycles without combinatorial duplicates.
+   - Distinct from simple back-edge checks; accurately computes true cycle counts.
+2. **Cycle Existence (3-Color DFS)**:
+   - Efficient O(V + E) white/gray/black DFS for instantaneous cycle existence queries.
+3. **Graph Generator Constraints**:
+   - Strictly validates requested node counts, edge counts, and branching/convergence factors. Rejects impossible topologies rather than silently emitting invalid graphs.
+4. **DOT Parser**:
+   - Supports quoted identifiers, alphanumeric labels, whitespace, direction tokens (`->`), and attribute blocks.
 
-## Exploration controller
+## Audio Playback and Parity Verification
 
-A testable state machine handles neighbor selection, traversing edges, returning, resetting, replaying, cancelling and requesting precise text. Navigation should work when audio rendering is disabled.
+- **Condition A**: Interactive speech/text baseline without non-speech sonification.
+- **Condition B**: Non-spatial sonification with semantic pitch mapping, duration envelopes, and direction indications.
+- **Condition C**: Identical sonification to Condition B with controlled stereo azimuth spatial panning (`pan` and `endPan`).
+- Automated tests verify exact event-sequence parity between Conditions B and C (durations, frequencies, waveforms, attack/decay envelopes, and event offsets).
 
-## Audio renderer
+## Data Integrity and Storage
 
-Convert semantic events into versioned schedules. B and C share tone sequences; C adds only controlled pan. Use injected clock and audio-device interfaces for tests; browser Web Audio implementation is a thin adapter.
-
-## Experiment runner
-
-Distinct states: calibration -> training -> practice -> recorded trial -> questionnaire -> completion. Persist at transition boundaries so interruption cannot silently erase records. Record wall-clock time for audit and monotonic elapsed offsets for durations.
-
-Exports must be compatible with offline analysis, must not include unnecessary personal data, and must expose enough metadata to reproduce scoring.
-
-## Example structure (flexible)
-
-- src/domain/graph, src/domain/tasks
-- src/exploration
-- src/audio/{events,mappings,renderer}
-- src/research/{conditions,runner,scoring,recorder}
-- src/accessibility/{keyboard,speech}
-- src/storage
-- src/components
-- tests/{unit,integration,e2e,fixtures}
-
-## Delivery trade-offs
-
-No backend or AI model is needed to answer the first research question. Tauri/Rust, neural diagram extraction, dynamic-programming matrices and HRTF become separate experiments only after initial data justifies the additional complexity.
+- **Monotonic Duration Measurement**: Separate `explorationDurationMs` (graph traversal) and `responseDurationMs` (form entry) measured via `performance.now()`.
+- **Trial Status Tracking**: Explicit trial logging with `completed`, `interrupted`, `aborted`, or `timeout`.
+- **Workload Instrument**: Modified Raw NASA-TLX with neutral starting values (midpoint 5) across 6 subscales without preset participant answers.
+- **Persistence**: Durable IndexedDB persistence on every state transition with surfaced persistence warnings.

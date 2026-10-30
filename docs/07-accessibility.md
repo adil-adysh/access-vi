@@ -2,52 +2,116 @@
 
 ## Non-negotiable requirements
 
-The browser app must support a complete nonvisual journey: choose graph, learn controls, explore, start/finish task, enter answer, review consent/settings, export and delete session. Every action needs a keyboard path and a discoverable accessible name. A sighted tester should not be required to interpret the interface.
+The browser app must support a complete nonvisual journey: choose graph, learn controls, explore, start/finish task, enter answer, review consent/settings, export and delete session. Every action needs a keyboard path and a discoverable accessible name. Sighted operation is not required to interpret the interface.
 
-Target first: **Windows 11 + Microsoft Edge + NVDA**. Also test browser variants when feasible. Automated checks are necessary but never equivalent to manual screen-reader verification.
+Target platform: **Windows 11 + Microsoft Edge + NVDA (latest stable)**. Automated axe checks are required during continuous integration, but manual verification with a live screen reader is necessary to validate speech fluency, forms mode switching, and auditory ergonomics.
 
-## Keyboard behavior
+## Keyboard Architecture & Focus Model
 
-- Start with native buttons, lists, forms, dialogs, and visible heading structure.
-- Scope arrow-key graph traversal to an explicit focused explorer, not the whole page.
-- Let Tab/Shift+Tab travel between controls; offer Escape/Stop/Back without traps.
-- Keep current node and selected neighbor distinct from DOM focus and announce transitions deliberately.
-- Provide keyboard help, shortcut conflict review, and a no-time-limit exploration mode.
-- Do not override NVDA reading shortcuts while outside the explorer.
+- **Focused Workspace Scope**: Keyboard shortcuts are scoped strictly to the exploration panel (`tabindex="0"`, `role="region"`, `aria-label="Graph exploration workspace..."`).
+- **No Global Shortcut Capture**: Unconditional `<svelte:window onkeydown>` handlers were removed. When focus is outside the exploration region (e.g. navigation headers, form inputs, or background containers), graph traversal keys are not intercepted.
+- **Form & Input Isolation**: Typing inside `<input>`, `<textarea>`, `<select>`, and `[contenteditable]` elements natively preserves all keystrokes. Characters such as `j`, `k`, `Space`, `Enter`, and Arrow keys do not trigger graph actions while focused on form elements.
+- **Modal Focus Management**:
+  - `KeyboardHelpModal` and `ImportModal` trap Tab/Shift+Tab focus within the dialog boundaries.
+  - Dialogs suspend all graph navigation shortcuts while open.
+  - Pressing `Escape` closes the modal immediately.
+  - Focus is deterministically restored to the triggering button upon dismissal.
+- **Predictable Tab Navigation**: Normal Tab and Shift+Tab key flows proceed sequentially through interactive controls without keyboard traps.
 
-The WAI-ARIA application role changes how some screen readers interpret the page. Use only if a particular custom widget cannot be expressed with ordinary semantic controls; confine it to the narrowest container and verify manually [R7, R10].
+## Speech, Live Regions & Screen Reader Semantics
 
-## Speech and live regions
+- **No Nested Interactive Options**: In earlier designs, buttons were nested inside `role="option"`, violating ARIA 1.2 rules. Connections are now rendered using semantic `<ul>` and `<li><button class="neighbor-select-btn">` controls with `aria-current="true"` on the selected neighbor.
+- **WCAG 2.5.3 (Label in Name)**: Every accessible name (`aria-label`) begins with or contains the visible text on the button to support voice control and screen-reader fidelity.
+- **Polite vs. Assertive Announcements**:
+  - Traversal, neighbor selection, and state updates are sent to polite live regions (`aria-live="polite"`).
+  - Navigation errors, boundary notices, and task transitions use assertive live regions (`aria-live="assertive"`).
+- **Forms Mode**: When entering response entry forms or workload sliders, NVDA remains in forms mode without shortcut interference.
 
-- Avoid speaking the same node twice via NVDA and browser speech.
-- Prefer ordinary textual accessible names for standard UI; provide a dedicated status only for meaningful changes.
-- Announce task prompts, errors and answer submission through a consistent strategy.
-- Never rely on synthetic speech completion for elapsed-time measurement.
-- Ensure typed-response fields retain predictable NVDA forms mode.
+## Color Contrast & Visual Accessibility
 
-## Audio and sensory alternatives
+- Automated axe audits run with the `color-contrast` rule strictly enabled (no blanket exemptions).
+- High contrast color palette:
+  - Background: `#0a0e17`
+  - Surface cards: `#131b2e`
+  - Text primary: `#f1f5f9` (contrast ratio > 12:1 against dark background)
+  - Text muted: `#94a3b8` (contrast ratio > 5.5:1 against card surface)
+  - Primary accents: `#38bdf8` (contrast ratio > 7:1)
+  - Danger: `#f87171` (contrast ratio > 6:1)
 
-- No audio until requested; user-controlled volume and immediate Stop.
-- Comfortable calibration; no sharp transients or intentionally startling sounds.
-- Non-spatial/mono playback must remain usable when stereo discrimination fails.
-- Avoid absolute dependence on high frequencies or small pan differences.
-- Clarify that alternate sensory modes may not be equivalent to a spatial experimental condition; use a transparent accommodation/exclusion policy.
+---
 
-## Manual checklist (record results with version/date)
+## Comprehensive Manual NVDA Testing Checklist
 
-1. Launch in Edge with NVDA; verify headings, buttons and first focus.
-2. Navigate menus by keyboard; inspect help and enter explorer.
-3. Explore incoming/outgoing edges; return to previous/start node; no focus traps.
-4. Trigger and cancel each audio sequence; verify actual sound is distinct and repeatable.
-5. Change condition A/B/C; ensure labels, information and navigation remain equivalent.
-6. Begin/abort/resume task; enter and submit answers without a pointer.
-7. Verify timeouts, error messages, imports, exports, deletion and consent UI.
-8. Check live-region verbosity, NVDA/browse-mode conflicts, and edge navigation with both desktop and laptop keyboard layouts.
-9. Confirm mono fallback, headphone channel swap, volume limit and keyboard Stop.
-10. Re-test after any dependency, DOM or keyboard-state change.
+**Environment:** Windows 11, Microsoft Edge (latest stable version), NVDA (2024.x or later).
 
-## Automated tests
+### Test Setup
+- [ ] Connect stereo headphones or calibrated stereo speakers.
+- [ ] Start NVDA with default speech synthesizer.
+- [ ] Launch Microsoft Edge and navigate to `http://localhost:5173`.
 
-axe-core and Playwright: keyboard path, focus visibility, label associations, roles, form errors, dialog focus, tab order, no critical WCAG issues. Use accessibility snapshots where meaningful. Playwright does not validate audio perception or NVDA announcements; log manual outcomes separately.
+### 1. Initial Page Load & Heading Hierarchy
+- [ ] Press `H` in NVDA browse mode to navigate headings.
+- [ ] Verify `H1`: "Auditory Graph Explorer" is announced clearly.
+- [ ] Verify `H2` subheadings are structurally ordered without skipping levels.
+- [ ] Verify NVDA announces current mode: "Current Mode: Interactive Speech Baseline" (or active condition).
 
-References: [R7], [R9], [R10].
+### 2. Main Navigation & Tab Switching
+- [ ] Press `Tab` through the main navigation bar.
+- [ ] Verify buttons: "Graph Explorer", "Research Experiment", "Results & Export", "Settings", "Import", and "Help (?)".
+- [ ] Verify `aria-current="page"` is announced only for the active tab.
+- [ ] Switch to Settings tab; verify heading "Audio & Sonification Settings" is announced.
+- [ ] Switch back to Graph Explorer tab; verify focus is predictable.
+
+### 3. Graph Explorer Focus & Keyboard Traversal
+- [ ] Press `Tab` into the graph exploration region.
+- [ ] Verify NVDA announces: "Graph Exploration Workspace... region".
+- [ ] Press `Down Arrow` or `J`. Verify announcement of selected neighbor and directional relationship.
+- [ ] Press `Enter` or `Right Arrow`. Verify announcement of node traversal and updated in/out degrees.
+- [ ] Press `Left Arrow` or `Backspace`. Verify announcement: "Returned back to Node X".
+- [ ] Press `D` to toggle between Outgoing and Incoming directions. Verify announcement: "Direction switched to incoming/outgoing".
+- [ ] Press `I` to inspect current node. Verify detailed breakdown is announced via assertive live region.
+- [ ] Press `R` to replay audio. Verify audio triggers and announcement: "Replaying audio for Node X".
+
+### 4. Form Field Isolation & Modal Dialogs
+- [ ] Press `Tab` to the "Import" button and press `Enter`.
+- [ ] Verify NVDA announces: "Import Directed Graph dialog".
+- [ ] Verify initial focus lands on the first focusable element inside the modal.
+- [ ] Press `Tab` repeatedly. Verify focus cycles within the modal and does NOT escape to background elements.
+- [ ] Move focus into the "Paste DOT or JSON text" textarea.
+- [ ] Type `digraph { A -> B; }`.
+- [ ] Verify typing keys `j`, `k`, `Space`, `Enter` types text into the textarea and does NOT trigger graph traversal in the background.
+- [ ] Press `Escape`. Verify modal closes and focus is restored directly to the "Import" button.
+- [ ] Open the "Help (?)" modal via button or `?`. Verify dialog opens, Tab is trapped, and `Escape` closes it, returning focus to the Help button.
+
+### 5. Research Experiment Workflow & Answer Protection
+- [ ] Navigate to the "Research Experiment" tab.
+- [ ] Review Participant Consent. Press `Enter` on "I Understand & Acknowledge Consent".
+- [ ] Audio Calibration: Press "Test Left Tone" and "Test Right Tone". Verify stereo separation.
+- [ ] Click "Confirm Audio & Proceed to Training".
+- [ ] Training: Read instructions and practice navigating. Click "I Am Ready to Begin Experimental Trials".
+- [ ] Trial Prep: Read Task 1 prompt. Verify no answer leaks are present in the prompt or title.
+- [ ] Click "Start Graph Exploration".
+- [ ] In Active Trial:
+  - [ ] Verify full adjacency table is NOT present in the DOM.
+  - [ ] Verify cycle status and count badges are NOT displayed.
+  - [ ] Verify graph title is anonymized (e.g. "Study Graph").
+  - [ ] Navigate nodes using arrow keys.
+- [ ] Click "Finish Exploration & Enter Response".
+  - [ ] Verify exploration region is replaced by response form.
+  - [ ] Verify graph cannot be traversed or re-inspected during response entry.
+  - [ ] For single choice: select option using arrow keys.
+  - [ ] For boolean: select Yes/No.
+  - [ ] For reconstruction: add edge pairs.
+  - [ ] Submit answer.
+- [ ] After Block 0 completes:
+  - [ ] Verify Condition Workload Assessment (Modified Raw NASA-TLX) appears.
+  - [ ] Verify 6 sliders (Mental, Physical, Temporal, Performance, Effort, Frustration) start at neutral 5.
+  - [ ] Adjust sliders and submit.
+  - [ ] Verify transition to "Rest Period".
+
+### 6. Results, Export & Storage Verification
+- [ ] Navigate to "Results & Export" tab.
+- [ ] Verify trial summary table announces completed trials, durations, and accuracy.
+- [ ] Click "Export JSON" and "Export CSV". Verify downloads complete without error.
+- [ ] Refresh the browser (`F5`). Verify active session state is restored from IndexedDB.
+- [ ] Click "Clear Data". Verify confirmation prompt and clean reset.
