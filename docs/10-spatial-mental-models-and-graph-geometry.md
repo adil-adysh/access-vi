@@ -50,13 +50,13 @@ Current implementation:
 
 **Identified research gap:** Can an optional *stable map representation*, with fixed node anchors and navigable overview/landmarks, improve global graph comprehension compared with local neighbor-order panning or nonspatial audio?
 
-Separate technical debt: the present pitch scale wraps with overlapping semitone offsets, so some node IDs can share a frequency. Pitch identity uniqueness and recognition should be tested independently rather than assuming it is reliable.
+**Governing policy (adopted after this proposal):** [Visual–auditory semantic parity](11-visual-auditory-parity-governing-rules.md) requires nodes with identical non-text visual appearance to share the same intrinsic sound; node labels and IDs belong to screen-reader speech. The ID-derived pitch identities in the current implementation are **nonconforming by design**, not merely in need of more unique frequencies. A new mapping must remove arbitrary identifier-to-tone differences. Any layout audio must represent an actually chosen/visible layout and must not falsely imply node rank.
 
 ## 4. Design goals and non-goals
 
 **G1 — Stable anchors:** The chosen map location of a node must remain the same when it is reached from different routes, reselected, or replayed. Stable means stable within the graph/layout version, not fixed forever across unrelated layout algorithms.
 
-**G2 — Preserve semantic distinctions:** Node identity, edge direction, edge existence, selected-neighbor order, and spatial position must be separately interpretable. Do not make high pitch simultaneously mean both node identity and greater depth/distance.
+**G2 — Preserve semantic distinctions:** **Textual identity** is conveyed by NVDA; the same visual node shape/style receives the same **intrinsic shape-category sound** regardless of node ID. Edge direction, edge existence, selected-neighbor order, and meaningful visual layout positions require their own documented cues. Do not use pitch to invent a ranking or distinguish labels.
 
 **G3 — Overview and detail:** Provide controllable overview, local neighborhood, path trace, landmark lookup, and precise speech/text inspection. Avoid compulsory long audio sequences.
 
@@ -99,9 +99,9 @@ The user-facing mental *map* is an interface around a chosen layout. It must not
 
 **M0 — Existing local panorama (retain unchanged).** Current condition C. Neighbor slots are spread across left/right according to incoming/outgoing mode. This expresses a local list, not a global position.
 
-**M1 — Stable one-dimensional map (first prototype).** Assign each node a fixed pan derived from the x-coordinate of one layout. The same node sounds from the same left/right location whenever revisited. Preserve familiar node-identity sounds and speech. Explain that *pan is only horizontal placement*, not full geometry. Reuse of positions across different routes may assist landmarking but may cause spatial collisions.
+**M1 — Stable one-dimensional map (first prototype).** Assign a node a fixed pan derived from its x-coordinate in an **explicit corresponding visual layout**. The same location is replayed consistently across revisits; identical-shaped nodes retain the same intrinsic shape sound, while NVDA communicates their individual labels. Explain that *pan is only horizontal placement*, not full geometry. Reuse of positions across different routes may assist landmarking but may cause spatial collisions.
 
-**M2 — Structured two-dimensional map (separate exploratory prototype).** Add a second explicitly labeled dimension through accessible spoken relative position (e.g. “upper-left,” “below B”), an optional distinct non-conflicting cue, or a separately tested spatial renderer. Do not imply ordinary stereo pan conveys height or physical distance. Avoid assigning arbitrary pitch to vertical position while pitch is used for node identity.
+**M2 — Structured two-dimensional map (separate exploratory prototype).** Add a second dimension only when the selected diagram contains the corresponding spatial distinction: accessible spoken relative position (e.g. “upper-left,” “below B”), an optional distinct non-conflicting cue, or a separately tested spatial renderer. Do not imply ordinary stereo pan conveys height or physical distance. Do not use identifier-dependent pitch or imply vertical rank from pitch.
 
 Candidate interactions:
 
@@ -173,7 +173,7 @@ Test unfamiliar shapes, more nodes, arbitrary labels, cyclic vs acyclic structur
 | Extra layout cues leak correct answers | Condition-specific information-exposure audit, independent blinded scoring, task-by-task leakage tests. |
 | Stereo positions change subjective loudness or are inaudible | Volume/calibration checks, actual waveform/settings snapshots, mono-accessible alternatives. |
 | Listening effort increases with node count | Brief on-demand overview, replay, progressive disclosure, measure fatigue and workload. |
-| Musical pitch identities collide | Fix and independently validate recognizability and pitch range, with versioned mappings. |
+| ID-specific musical pitches contradict same-shape auditory parity | Remove ID-to-pitch identity mapping for revised protocol; use shared shape/category sound and NVDA text labels, with versioned mappings and tests. |
 | Different graph structure or layout complexity | Matched difficulty distributions, independent stimuli, reproducible assignment. |
 | Sighted visual findings overgeneralized to blindness | Treat visual-layout work as motivation; test outcomes with intended blind users. |
 | Touch/proprioception findings incorrectly transferred to keyboard stereo | State hardware differences and test keyboard-specific reference frames. |
