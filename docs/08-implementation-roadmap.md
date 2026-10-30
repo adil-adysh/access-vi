@@ -2,6 +2,20 @@
 
 **Implementation state:** this plan is not a claim that Bob or any agent has completed a phase. Update progress based on commits, automated results, and manual evidence.
 
+## New program milestones — faithful access before audio-first optimization
+
+The accepted [three-stage governing strategy](13-faithful-access-to-audio-first-research-strategy.md) sets the **research priority**; the numbered phases below describe the **legacy engineering roadmap** and do not correspond to those three stages. Do not mark any of these new milestones completed without a source-feature audit and test evidence.
+
+| Milestone | Deliverable | Gate to continue |
+|---|---|---|
+| **F0 — Source-information inventory** | Explicit coverage matrix: source node/edge text, IDs, topology, shapes, meaningful styling, groups, position when meaningful, labels and annotations; named unsupported cases | No silent feature omission in the supported test corpus |
+| **F1 — Faithful representation** | Shared visual metadata/legend and intrinsic category sounds; independent edge/direction cues; NVDA ownership of all graph text; a separately versioned lab/mode | Mapping invariants, import roundtrips, keyboard reachability and manual NVDA evidence |
+| **F2 — Independent exploration** | Complete discoverability/inspection of all supported source features (including edge labels, disconnected regions, loops and parallel edges where supported) | Audit proves every supported fact reachable without sighted assistance |
+| **V — Fidelity validation** | Formative cue tests and graph reconstruction studies, including false-rank inferences and workload | Report verified coverage and perception/understanding problems; remediate systematic failures |
+| **O — Audio-first optimization** | One optional, source-preserving auditory improvement per versioned experiment | Show fidelity remains intact and quantify task-specific benefit/trade-offs before promotion |
+
+**Known unfinished work:** Current ID-derived pitch mapping conflicts with same-shape parity; shape/style is not standardized in the graph model; complete edge-label announcements and supported-property coverage require audit. This document does not assert those issues have been corrected.
+
 ## Phase 1 — Foundation
 
 Create Svelte/Vite/TS app, lint/test setup, directed graph schema, immutable fixtures, import validators, Graphology adapter and pure structural oracles. **Done when:** tests cover branching, convergence, reachability, cycles, invalid edges and seeded reproducibility.
