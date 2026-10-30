@@ -44,7 +44,8 @@ Accessible author manuscript: https://pmc.ncbi.nlm.nih.gov/articles/PMC13227614/
 **[R11]** Purchase, H. C., Pilcher, C., & Plimmer, B. (2012). *Graph Drawing Aesthetics—Created by Users, Not Algorithms.* IEEE Transactions on Visualization and Computer Graphics, 18(1), 81–92. DOI: https://doi.org/10.1109/TVCG.2010.269  
 **Use:** human graph layout preferences (including edge crossings and grid alignment); evidence about sighted visual graph drawing, not auditory maps.
 
-**[R12]** *Cognitive map formation supported by auditory, haptic, and multimodal information in persons with blindness* (2022). Review. PubMed: https://pubmed.ncbi.nlm.nih.gov/35902045/  
+**[R12]** Ottink, L., Buimer, H., van Raalte, B., Doeller, C. F., van der Geest, T. M., & van Wezel, R. J. A. (2022). *Cognitive map formation supported by auditory, haptic, and multimodal information in persons with blindness.* Neuroscience & Biobehavioral Reviews, 140, 104797. DOI: https://doi.org/10.1016/j.neubiorev.2022.104797  
+PubMed: https://pubmed.ncbi.nlm.nih.gov/35902045/  
 **Use:** synthesis of nonvisual route and survey map research, including variability, spatial information and training; not a node-link audio experiment.
 
 **[R13]** Geronazzo, M., Bedin, A., Brayda, L., Campus, C., & Avanzini, F. (2016). *Interactive spatial sonification for non-visual exploration of virtual maps.* International Journal of Human-Computer Studies, 85, 4–15. DOI: https://doi.org/10.1016/j.ijhcs.2015.08.004  
