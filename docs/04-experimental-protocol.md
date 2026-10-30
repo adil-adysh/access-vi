@@ -2,6 +2,10 @@
 
 **Not ethics-approved, preregistered or executed.** This document is a proposed protocol, not permission to begin a formal human-subjects study. Seek applicable research ethics review/consent procedures before recruitment or publication.
 
+## Design-rule change control
+
+The accepted [visual–auditory semantic parity and screen-reader text rule](11-visual-auditory-parity-governing-rules.md) supersedes the legacy ID-based node-pitch design **for future mappings**. Do not silently alter the current A/B/C sound profiles in-place. A revised study must use a new mapping version, document uniform same-shape intrinsic sounds, non-speech shape/edge semantics, NVDA ownership of all graph text (including node and edge labels), and retest comparability and information exposure. Existing data must retain the mapping actually used.
+
 ## Sequence of work
 
 ### Stage 0: engineering verification (no participants)
