@@ -119,4 +119,6 @@ As of 2026-10-30 in `src/audio/sonification/SonificationStrategy.ts`:
 
 This is a **governing product/research design rule**, not a previously proven experimental conclusion. When code, tests, visuals, imports or documentation conflict with it, the change must be identified and resolved by a versioned design/implementation decision. Do not silently alter ongoing or already recorded experiments.
 
+The evidence-based candidate vocabulary, perceptual grouping risks, and first-person formative observations are documented in [perceptual mapping and auditory Gestalt](12-perceptual-mapping-and-auditory-gestalt.md). All candidate sound assignments remain subject to this governing rule.
+
 Cross-references: [sonification design](05-sonification-design.md), [accessibility](07-accessibility.md), [experiment protocol](04-experimental-protocol.md), [spatial mental models](10-spatial-mental-models-and-graph-geometry.md), and [research decisions](09-decisions-and-risks.md).
