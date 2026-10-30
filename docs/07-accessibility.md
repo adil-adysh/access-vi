@@ -6,6 +6,10 @@ The browser app must support a complete nonvisual journey: choose graph, learn c
 
 Target platform: **Windows 11 + Microsoft Edge + NVDA (latest stable)**. Automated axe checks are required during continuous integration, but manual verification with a live screen reader is necessary to validate speech fluency, forms mode switching, and auditory ergonomics.
 
+## Governing text-channel requirement
+
+See [mandatory visual–auditory parity rule](11-visual-auditory-parity-governing-rules.md). **All textual graph data is the responsibility of semantic HTML and NVDA/screen-reader announcements, including complete node and edge labels.** Do not convert label spelling into pitches or invoke a competing narrator. For nodes with matching visual shape/style, the non-speech intrinsic node cue must match; shape/style distinctions require separately mapped and consistently distinguishable cues. These requirements are not yet fully implemented.
+
 ## Keyboard Architecture & Focus Model
 
 - **Focused Workspace Scope**: Keyboard shortcuts are scoped strictly to the exploration panel (`tabindex="0"`, `role="region"`, `aria-label="Graph exploration workspace..."`).
@@ -69,6 +73,10 @@ Target platform: **Windows 11 + Microsoft Edge + NVDA (latest stable)**. Automat
 - [ ] Switch back to Graph Explorer tab; verify focus is predictable.
 
 ### 3. Graph Explorer Focus & Keyboard Traversal
+- [ ] Verify that matching-shape nodes A and B have the same intrinsic non-speech node cue, while NVDA correctly announces different labels; **expected to fail against the legacy ID-based pitch mapping until fixed**.
+- [ ] Verify that circle vs rectangle uses different shape-category cues when that style data and visual diagram are implemented; document as a pending test until then.
+- [ ] Inspect labeled edges: NVDA must announce the actual edge label, source and destination; a numeric or symbolic edge label must never be replaced by an arbitrary melodic code.
+- [ ] Verify that graph descriptions and all other displayed graph text are accessible by focus/inspection without a second Web Speech API voice.
 - [ ] Press `Tab` into the graph exploration region.
 - [ ] Verify NVDA announces: "Graph Exploration Workspace... region".
 - [ ] Press `Down Arrow` or `J`. Verify announcement of selected neighbor and directional relationship.
