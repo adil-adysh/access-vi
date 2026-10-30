@@ -8,6 +8,10 @@
 
 Turn *graph semantics* into interpretable, repeatable auditory events while allowing users to discover connectivity through action. A special sound saying “this is a cycle” during a cycle-identification trial would invalidate the test.
 
+## Perceptual mapping research
+
+See [visual variables, auditory grouping, candidate shape cues, and test criteria](12-perceptual-mapping-and-auditory-gestalt.md). This research guide is subordinate to the normative parity rule. The existing ID-derived pitch mapping remains a **known nonconformance** rather than an accepted implementation of the new shape-to-sound vocabulary. Do not assume sine/triangle/square waveforms have naturally fixed shape meanings; validate the mapping before enabling it as a versioned study condition.
+
 ## Two-stage model
 
 **Graph semantic layer** emits events like FocusNode, NeighborEnumerationStart, NeighborItem, TraverseOutgoingEdge, TraverseIncomingEdge, ReturnToNode and EndSequence. It is independent of Web Audio.
