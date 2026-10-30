@@ -20,7 +20,8 @@ This directory is the source of truth for research intent, testable claims and c
 10. [09 — Decision log and uncertainties](09-decisions-and-risks.md): trade-offs, threats to validity and unresolved choices.
 11. [10 — Spatial mental models and auditory graph geometry](10-spatial-mental-models-and-graph-geometry.md): research evidence, stable auditory maps, hypotheses, and staged evaluation.
 12. [11 — Governing visual–auditory parity and screen-reader text](11-visual-auditory-parity-governing-rules.md): mandatory rules for matching non-text visual distinctions with sounds and assigning all graph text to NVDA.
-13. [References](references.md): cited papers, standards and official APIs with links.
+13. [12 — Perceptual mapping and auditory Gestalt](12-perceptual-mapping-and-auditory-gestalt.md): research-informed visual-to-sound mappings, first-person observations, testable hypotheses and verification criteria.
+14. [References](references.md): cited papers, standards and official APIs with links.
 
 ## Terminology
 
