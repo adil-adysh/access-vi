@@ -207,4 +207,80 @@ describe('Sample Datasets', () => {
     const exp3 = datasets['graph-exp-3'];
     expect(exp3.getNodeIds()).toHaveLength(9);
   });
+
+  it('anonymizes graph titles and descriptions to prevent experimental answer leaks', () => {
+    const datasets = getSampleGraphs();
+    for (const [, g] of Object.entries(datasets)) {
+      const meta = g.getMetadata();
+      expect(meta.name).not.toMatch(/cycle/i);
+      expect(meta.name).not.toMatch(/feedback/i);
+      expect(meta.name).not.toMatch(/diamond/i);
+      expect(meta.description ?? '').not.toMatch(/cycle/i);
+      expect(meta.description ?? '').not.toMatch(/feedback/i);
+    }
+  });
+
+  it('enumerates all elementary simple cycles without duplicate permutations', () => {
+    const g = new DirectedGraph({ id: 'cycles', name: 'Cycles' });
+    ['A', 'B', 'C', 'D'].forEach((id) => g.addNode({ id }));
+    // Cycle 1: A -> B -> A
+    g.addEdge({ id: 'e1', source: 'A', target: 'B' });
+    g.addEdge({ id: 'e2', source: 'B', target: 'A' });
+    // Cycle 2: B -> C -> D -> B
+    g.addEdge({ id: 'e3', source: 'B', target: 'C' });
+    g.addEdge({ id: 'e4', source: 'C', target: 'D' });
+    g.addEdge({ id: 'e5', source: 'D', target: 'B' });
+
+    const cycles = g.detectCycles();
+    expect(cycles).toHaveLength(2);
+
+    // Verify first cycle is A-B-A
+    const cycle1 = cycles.find((c) => c.length === 3);
+    expect(cycle1).toEqual(['A', 'B', 'A']);
+
+    // Verify second cycle is B-C-D-B
+    const cycle2 = cycles.find((c) => c.length === 4);
+    expect(cycle2).toEqual(['B', 'C', 'D', 'B']);
+  });
+
+  it('computes deterministic graph hash matching identical topologies', () => {
+    const g1 = new DirectedGraph({ id: 'g1', name: 'G1' });
+    ['A', 'B', 'C'].forEach((id) => g1.addNode({ id }));
+    g1.addEdge({ id: 'e1', source: 'A', target: 'B' });
+    g1.addEdge({ id: 'e2', source: 'B', target: 'C' });
+
+    const g2 = new DirectedGraph({ id: 'g2', name: 'G2' });
+    ['B', 'A', 'C'].forEach((id) => g2.addNode({ id })); // added in different order
+    g2.addEdge({ id: 'e2', source: 'B', target: 'C' });
+    g2.addEdge({ id: 'e1', source: 'A', target: 'B' });
+
+    expect(g1.computeHash()).toBe(g2.computeHash());
+
+    // Modify g2 by adding an edge
+    g2.addEdge({ id: 'e3', source: 'A', target: 'C' });
+    expect(g1.computeHash()).not.toBe(g2.computeHash());
+  });
+
+  it('parses DOT graphs with spaces in quoted node identifiers', () => {
+    const dot = `
+      digraph SpacesNet {
+        "Start Node" -> "Middle Hub";
+        "Middle Hub" -> "End Node";
+      }
+    `;
+    const g = GraphParser.parseDOT(dot, 'spaces');
+    expect(g.getNodeIds()).toEqual(['Start Node', 'Middle Hub', 'End Node']);
+    expect(g.hasEdge('Start Node', 'Middle Hub')).toBe(true);
+    expect(g.hasEdge('Middle Hub', 'End Node')).toBe(true);
+  });
+
+  it('rejects graph generation when requested constraints cannot be satisfied', () => {
+    expect(() => {
+      DeterministicGraphGenerator.generate({
+        seed: 42,
+        nodeCount: 5,
+        edgeCount: 2 // impossible: 5 nodes need at least 4 edges to connect
+      });
+    }).toThrow(/less than minimum/i);
+  });
 });

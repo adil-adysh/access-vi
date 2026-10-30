@@ -11,39 +11,60 @@ export class TaskFactory {
     const tasks: TaskDefinition[] = [];
 
     // Task 1: Branch Identification
+    const branchOptions = [...nodeIds, 'None'];
     tasks.push({
       id: `task-branch-${meta.id}`,
       type: 'branch_identification',
       title: 'Task 1: Branch Identification',
-      promptText: 'Which node in this graph has outgoing connections to two or more different nodes?',
+      promptText: 'Which node in this graph has outgoing connections to two or more different nodes? (Select any valid branching node, or "None" if none exist)',
       graphId: meta.id,
       inputType: 'single_choice',
-      options: nodeIds
+      options: branchOptions
     });
 
     // Task 2: Convergence Identification
+    const convOptions = [...nodeIds, 'None'];
     tasks.push({
       id: `task-convergence-${meta.id}`,
       type: 'convergence_identification',
       title: 'Task 2: Convergence Identification',
-      promptText: 'Which node receives incoming connections from two or more different nodes?',
+      promptText: 'Which node receives incoming connections from two or more different nodes? (Select any valid convergence node, or "None" if none exist)',
       graphId: meta.id,
       inputType: 'single_choice',
-      options: nodeIds
+      options: convOptions
     });
 
-    // Task 3: Reachability
+    // Task 3: Reachability Query (supports both positive and negative cases)
     if (nodeIds.length >= 2) {
-      const source = nodeIds[0];
-      const target = nodeIds[nodeIds.length - 1];
+      let posPair: { source: string; target: string } | null = null;
+      let negPair: { source: string; target: string } | null = null;
+
+      for (let i = 0; i < nodeIds.length; i++) {
+        for (let j = 0; j < nodeIds.length; j++) {
+          if (i !== j) {
+            const reachable = graph.isReachable(nodeIds[i], nodeIds[j]);
+            if (reachable && !posPair) {
+              posPair = { source: nodeIds[i], target: nodeIds[j] };
+            }
+            if (!reachable && !negPair) {
+              negPair = { source: nodeIds[i], target: nodeIds[j] };
+            }
+          }
+        }
+      }
+
+      // Deterministically select query pair (negative test for exp-2 and transfer when available)
+      const preferNegative = meta.id.includes('exp-2') || meta.id.includes('transfer');
+      const chosenPair = (preferNegative && negPair) ? negPair : (posPair ?? negPair ?? { source: nodeIds[0], target: nodeIds[nodeIds.length - 1] });
+
       tasks.push({
         id: `task-reachability-${meta.id}`,
         type: 'reachability',
         title: 'Task 3: Reachability Query',
-        promptText: `Can you reach Node ${target} from Node ${source} by following directed connections?`,
+        promptText: `Can you reach Node ${chosenPair.target} from Node ${chosenPair.source} by following directed connections?`,
         graphId: meta.id,
         inputType: 'boolean',
-        parameters: { source, target }
+        parameters: chosenPair
       });
     }
 

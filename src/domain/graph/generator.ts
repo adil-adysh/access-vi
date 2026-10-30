@@ -64,7 +64,18 @@ export class DeterministicGraphGenerator {
     }
 
     const maxEdges = nodeCount * (nodeCount - 1);
-    const clampedEdgeCount = Math.min(Math.max(nodeCount - 1, edgeCount), maxEdges);
+    if (edgeCount < nodeCount - 1) {
+      throw new Error(
+        `Requested edgeCount (${edgeCount}) is less than minimum edges required to connect ${nodeCount} nodes (${nodeCount - 1}).`
+      );
+    }
+    if (edgeCount > maxEdges) {
+      throw new Error(
+        `Requested edgeCount (${edgeCount}) exceeds maximum possible directed edges without self-loops (${maxEdges}).`
+      );
+    }
+
+    const clampedEdgeCount = edgeCount;
 
     const prng = new SeededPRNG(seed);
     const metadata: GraphMetadata = {
@@ -103,48 +114,45 @@ export class DeterministicGraphGenerator {
     }
 
     // Step 2: Add branching if requested
-    let currentBranching = graph.getBranchingNodes().length;
     let attempts = 0;
-    while (currentBranching < minBranching && graph.getEdges().length < clampedEdgeCount && attempts < 100) {
+    while (graph.getBranchingNodes().length < minBranching && graph.getEdges().length < clampedEdgeCount && attempts < 500) {
       attempts++;
-      const source = nodeIds[prng.nextInt(0, nodeCount - 1)];
+      // Pick a source that already has outDegree >= 1 to make it branch
+      const candidates = nodeIds.filter((n) => graph.getOutDegree(n) >= 1 && graph.getOutDegree(n) < nodeCount - 1);
+      const source = candidates.length > 0 ? candidates[prng.nextInt(0, candidates.length - 1)] : nodeIds[prng.nextInt(0, nodeCount - 1)];
       const target = nodeIds[prng.nextInt(0, nodeCount - 1)];
+
       if (source !== target && !graph.hasEdge(source, target)) {
-        if (!allowCycles) {
-          if (graph.isReachable(target, source)) continue; // would create cycle
-        }
+        if (!allowCycles && graph.isReachable(target, source)) continue;
         graph.addEdge({
           id: `e_${source}_${target}_${edgeIdx++}`,
           source,
           target
         });
-        currentBranching = graph.getBranchingNodes().length;
       }
     }
 
     // Step 3: Add convergence if requested
-    let currentConvergence = graph.getConvergenceNodes().length;
     attempts = 0;
-    while (currentConvergence < minConvergence && graph.getEdges().length < clampedEdgeCount && attempts < 100) {
+    while (graph.getConvergenceNodes().length < minConvergence && graph.getEdges().length < clampedEdgeCount && attempts < 500) {
       attempts++;
+      const candidates = nodeIds.filter((n) => graph.getInDegree(n) >= 1 && graph.getInDegree(n) < nodeCount - 1);
+      const target = candidates.length > 0 ? candidates[prng.nextInt(0, candidates.length - 1)] : nodeIds[prng.nextInt(0, nodeCount - 1)];
       const source = nodeIds[prng.nextInt(0, nodeCount - 1)];
-      const target = nodeIds[prng.nextInt(0, nodeCount - 1)];
+
       if (source !== target && !graph.hasEdge(source, target)) {
-        if (!allowCycles) {
-          if (graph.isReachable(target, source)) continue; // would create cycle
-        }
+        if (!allowCycles && graph.isReachable(target, source)) continue;
         graph.addEdge({
           id: `e_${source}_${target}_${edgeIdx++}`,
           source,
           target
         });
-        currentConvergence = graph.getConvergenceNodes().length;
       }
     }
 
     // Step 4: Fill remaining edges up to clampedEdgeCount
     attempts = 0;
-    while (graph.getEdges().length < clampedEdgeCount && attempts < 200) {
+    while (graph.getEdges().length < clampedEdgeCount && attempts < 1000) {
       attempts++;
       const source = nodeIds[prng.nextInt(0, nodeCount - 1)];
       const target = nodeIds[prng.nextInt(0, nodeCount - 1)];
@@ -159,6 +167,26 @@ export class DeterministicGraphGenerator {
           target
         });
       }
+    }
+
+    // Validate constraints
+    if (graph.getEdges().length !== clampedEdgeCount) {
+      throw new Error(
+        `Failed to satisfy requested edgeCount (${clampedEdgeCount}): generated graph has ${graph.getEdges().length} edges.`
+      );
+    }
+    if (graph.getBranchingNodes().length < minBranching) {
+      throw new Error(
+        `Failed to satisfy minBranching (${minBranching}): generated graph has ${graph.getBranchingNodes().length} branching nodes.`
+      );
+    }
+    if (graph.getConvergenceNodes().length < minConvergence) {
+      throw new Error(
+        `Failed to satisfy minConvergence (${minConvergence}): generated graph has ${graph.getConvergenceNodes().length} convergence nodes.`
+      );
+    }
+    if (!allowCycles && graph.hasCycle()) {
+      throw new Error('Generated graph contains cycle despite allowCycles=false.');
     }
 
     // Compute metrics and update metadata

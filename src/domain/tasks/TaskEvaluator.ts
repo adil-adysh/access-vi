@@ -22,18 +22,21 @@ export class TaskEvaluator {
       case 'branch_identification': {
         const branchingNodes = graph.getBranchingNodes();
         const submittedNode = String(answer).trim();
-        const isCorrect = branchingNodes.includes(submittedNode);
+        const isNone = submittedNode.toLowerCase() === 'none';
+        const isCorrect = branchingNodes.length === 0 ? isNone : branchingNodes.includes(submittedNode);
 
         return {
           taskId: task.id,
           taskType: type,
           isCorrect,
           score: isCorrect ? 1.0 : 0.0,
-          expectedAnswer: branchingNodes,
+          expectedAnswer: branchingNodes.length > 0 ? branchingNodes : ['None'],
           actualAnswer: submittedNode,
           explanation: isCorrect
-            ? `Node ${submittedNode} is a valid branching node with out-degree >= 2.`
-            : `Node ${submittedNode} is not a branching node. Ground truth branching nodes: [${branchingNodes.join(', ')}].`,
+            ? branchingNodes.length === 0
+              ? 'Correct: the graph contains no branching nodes.'
+              : `Node ${submittedNode} is a valid branching node with out-degree >= 2.`
+            : `Submitted answer "${submittedNode}" is incorrect. Ground truth branching nodes: [${branchingNodes.join(', ') || 'None'}].`,
           detailedMetrics: { branchingNodes }
         };
       }
@@ -41,18 +44,21 @@ export class TaskEvaluator {
       case 'convergence_identification': {
         const convergenceNodes = graph.getConvergenceNodes();
         const submittedNode = String(answer).trim();
-        const isCorrect = convergenceNodes.includes(submittedNode);
+        const isNone = submittedNode.toLowerCase() === 'none';
+        const isCorrect = convergenceNodes.length === 0 ? isNone : convergenceNodes.includes(submittedNode);
 
         return {
           taskId: task.id,
           taskType: type,
           isCorrect,
           score: isCorrect ? 1.0 : 0.0,
-          expectedAnswer: convergenceNodes,
+          expectedAnswer: convergenceNodes.length > 0 ? convergenceNodes : ['None'],
           actualAnswer: submittedNode,
           explanation: isCorrect
-            ? `Node ${submittedNode} is a valid convergence node with in-degree >= 2.`
-            : `Node ${submittedNode} is not a convergence node. Ground truth convergence nodes: [${convergenceNodes.join(', ')}].`,
+            ? convergenceNodes.length === 0
+              ? 'Correct: the graph contains no convergence nodes.'
+              : `Node ${submittedNode} is a valid convergence node with in-degree >= 2.`
+            : `Submitted answer "${submittedNode}" is incorrect. Ground truth convergence nodes: [${convergenceNodes.join(', ') || 'None'}].`,
           detailedMetrics: { convergenceNodes }
         };
       }

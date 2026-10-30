@@ -48,6 +48,10 @@ export class GraphParser {
 
     let edgeCounter = 1;
 
+    const nodePattern = '(?:(?:"(?:[^"\\\\]|\\\\.)*")|(?:[a-zA-Z0-9_]+))';
+    const edgeRegex = new RegExp(`^(${nodePattern}(?:\\s*->\\s*${nodePattern})+)(?:\\s*\\[(.*)\\])?$`);
+    const nodeRegex = new RegExp(`^(${nodePattern})(?:\\s*\\[(.*)\\])?$`);
+
     for (let lineIndex = 0; lineIndex < statements.length; lineIndex++) {
       const stmt = statements[lineIndex];
 
@@ -58,7 +62,6 @@ export class GraphParser {
 
       // Check for edge statement: A -> B [attrs] or A -> B -> C
       if (stmt.includes('->')) {
-        const edgeRegex = /^([a-zA-Z0-9_"-]+(?:\s*->\s*[a-zA-Z0-9_"-]+)+)(?:\s*\[(.*)\])?$/;
         const match = stmt.match(edgeRegex);
         if (!match) {
           throw new Error(`Syntax error at statement: "${stmt}"`);
@@ -95,7 +98,6 @@ export class GraphParser {
         }
       } else {
         // Node statement: A [label="..."] or simply A
-        const nodeRegex = /^([a-zA-Z0-9_"-]+)(?:\s*\[(.*)\])?$/;
         const match = stmt.match(nodeRegex);
         if (match) {
           const nodeId = GraphParser.unquote(match[1].trim());
@@ -109,6 +111,8 @@ export class GraphParser {
             category: attributes.category || existing?.category,
             metadata: { ...(existing?.metadata ?? {}), ...attributes }
           });
+        } else {
+          throw new Error(`Syntax error at statement: "${stmt}"`);
         }
       }
     }
@@ -196,9 +200,13 @@ export class GraphParser {
   }
 
   private static unquote(str: string): string {
-    if ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) {
-      return str.slice(1, -1);
+    const trimmed = str.trim();
+    if (
+      (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+      (trimmed.startsWith("'") && trimmed.endsWith("'"))
+    ) {
+      return trimmed.slice(1, -1).replace(/\\"/g, '"').replace(/\\'/g, "'");
     }
-    return str;
+    return trimmed;
   }
 }

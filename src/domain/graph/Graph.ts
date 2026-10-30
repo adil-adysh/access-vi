@@ -225,47 +225,100 @@ export class DirectedGraph {
   }
 
   public detectCycles(): string[][] {
-    const cycles: string[][] = [];
     const nodes = this.getNodeIds();
-    const visitedGlobal = new Set<string>();
+    const nodeIndexMap = new Map<string, number>();
+    nodes.forEach((id, idx) => nodeIndexMap.set(id, idx));
 
-    for (const startNode of nodes) {
-      if (visitedGlobal.has(startNode)) continue;
+    const cycles: string[][] = [];
 
+    // Johnson's elementary cycles algorithm
+    for (let sIdx = 0; sIdx < nodes.length; sIdx++) {
+      const startNode = nodes[sIdx];
+      const blocked = new Set<string>();
+      const bMap = new Map<string, Set<string>>();
       const stack: string[] = [];
-      const onStack = new Set<string>();
-      const visitedLocal = new Set<string>();
 
-      const dfs = (node: string) => {
-        visitedLocal.add(node);
-        visitedGlobal.add(node);
-        stack.push(node);
-        onStack.add(node);
+      const unblock = (u: string) => {
+        blocked.delete(u);
+        const bSet = bMap.get(u);
+        if (bSet) {
+          for (const w of Array.from(bSet)) {
+            bSet.delete(w);
+            if (blocked.has(w)) {
+              unblock(w);
+            }
+          }
+        }
+      };
 
-        for (const neighbor of this.getOutgoingNeighbors(node)) {
-          if (!visitedLocal.has(neighbor)) {
-            dfs(neighbor);
-          } else if (onStack.has(neighbor)) {
-            const cycleStartIndex = stack.indexOf(neighbor);
-            if (cycleStartIndex !== -1) {
-              const cycle = stack.slice(cycleStartIndex);
-              cycles.push([...cycle, neighbor]);
+      const circuit = (v: string): boolean => {
+        let foundCycle = false;
+        stack.push(v);
+        blocked.add(v);
+
+        // Consider only nodes in subgraph G_s (indices >= sIdx)
+        const neighbors = this.getOutgoingNeighbors(v).filter(
+          (nbr) => (nodeIndexMap.get(nbr) ?? -1) >= sIdx
+        );
+
+        for (const w of neighbors) {
+          if (w === startNode) {
+            cycles.push([...stack, startNode]);
+            foundCycle = true;
+          } else if (!blocked.has(w)) {
+            if (circuit(w)) {
+              foundCycle = true;
             }
           }
         }
 
+        if (foundCycle) {
+          unblock(v);
+        } else {
+          for (const w of neighbors) {
+            let bSet = bMap.get(w);
+            if (!bSet) {
+              bSet = new Set<string>();
+              bMap.set(w, bSet);
+            }
+            bSet.add(v);
+          }
+        }
+
         stack.pop();
-        onStack.delete(node);
+        return foundCycle;
       };
 
-      dfs(startNode);
+      circuit(startNode);
     }
 
     return cycles;
   }
 
   public hasCycle(): boolean {
-    return this.detectCycles().length > 0;
+    const color = new Map<string, number>(); // 0: unvisited, 1: visiting, 2: visited
+    const nodes = this.getNodeIds();
+    for (const node of nodes) {
+      color.set(node, 0);
+    }
+
+    const dfs = (u: string): boolean => {
+      color.set(u, 1);
+      for (const v of this.getOutgoingNeighbors(u)) {
+        const c = color.get(v) ?? 0;
+        if (c === 1) return true; // back edge found
+        if (c === 0 && dfs(v)) return true;
+      }
+      color.set(u, 2);
+      return false;
+    };
+
+    for (const node of nodes) {
+      if ((color.get(node) ?? 0) === 0) {
+        if (dfs(node)) return true;
+      }
+    }
+    return false;
   }
 
   public getBranchingNodes(): string[] {
@@ -382,6 +435,20 @@ export class DirectedGraph {
     return graph;
   }
 
+  public computeHash(): string {
+    const nodeIds = [...this.getNodeIds()].sort();
+    const edges = this.getEdges()
+      .map((e) => `${e.source}->${e.target}`)
+      .sort();
+    const str = `${nodeIds.join(',')}|${edges.join(';')}`;
+    let hash = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) {
+      hash ^= str.charCodeAt(i);
+      hash = Math.imul(hash, 0x01000193);
+    }
+    return (hash >>> 0).toString(16).padStart(8, '0');
+  }
+
   public static compareReconstruction(
     groundTruth: DirectedGraph,
     reconstructedEdges: Array<{ source: string; target: string }>
@@ -390,8 +457,22 @@ export class DirectedGraph {
       groundTruth.getEdges().map((e) => `${e.source}->${e.target}`)
     );
 
+    // Sanitize reconstructed edges
+    const validReconstructed: Array<{ source: string; target: string }> = [];
+    for (const e of reconstructedEdges ?? []) {
+      if (
+        e &&
+        typeof e.source === 'string' &&
+        typeof e.target === 'string' &&
+        e.source.trim() &&
+        e.target.trim()
+      ) {
+        validReconstructed.push({ source: e.source.trim(), target: e.target.trim() });
+      }
+    }
+
     const reconstructedSet = new Set(
-      reconstructedEdges.map((e) => `${e.source}->${e.target}`)
+      validReconstructed.map((e) => `${e.source}->${e.target}`)
     );
 
     const matchedEdges: Array<{ source: string; target: string }> = [];
@@ -399,7 +480,9 @@ export class DirectedGraph {
     const missingEdges: Array<{ source: string; target: string }> = [];
 
     for (const edgeStr of reconstructedSet) {
-      const [source, target] = edgeStr.split('->');
+      const parts = edgeStr.split('->');
+      const source = parts[0];
+      const target = parts.slice(1).join('->');
       if (truthEdgesSet.has(edgeStr)) {
         matchedEdges.push({ source, target });
       } else {
@@ -408,16 +491,31 @@ export class DirectedGraph {
     }
 
     for (const edgeStr of truthEdgesSet) {
-      const [source, target] = edgeStr.split('->');
+      const parts = edgeStr.split('->');
+      const source = parts[0];
+      const target = parts.slice(1).join('->');
       if (!reconstructedSet.has(edgeStr)) {
         missingEdges.push({ source, target });
       }
     }
 
-    const precision =
-      reconstructedSet.size > 0 ? matchedEdges.length / reconstructedSet.size : truthEdgesSet.size === 0 ? 1 : 0;
-    const recall =
-      truthEdgesSet.size > 0 ? matchedEdges.length / truthEdgesSet.size : reconstructedSet.size === 0 ? 1 : 0;
+    let precision = 0;
+    let recall = 0;
+
+    if (truthEdgesSet.size === 0 && reconstructedSet.size === 0) {
+      precision = 1.0;
+      recall = 1.0;
+    } else if (reconstructedSet.size === 0) {
+      precision = 0.0;
+      recall = 0.0;
+    } else if (truthEdgesSet.size === 0) {
+      precision = 0.0;
+      recall = 1.0;
+    } else {
+      precision = matchedEdges.length / reconstructedSet.size;
+      recall = matchedEdges.length / truthEdgesSet.size;
+    }
+
     const f1Score =
       precision + recall > 0 ? (2 * precision * recall) / (precision + recall) : 0;
     const exactMatch = missingEdges.length === 0 && extraEdges.length === 0;
