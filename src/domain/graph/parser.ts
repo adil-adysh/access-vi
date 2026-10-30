@@ -3,7 +3,218 @@ import type { GraphNode, GraphEdge, GraphMetadata, SerializedGraph } from './typ
 
 export interface ParseError {
   readonly line?: number;
+  readonly column?: number;
   readonly message: string;
+}
+
+type TokenType =
+  | 'STRICT'
+  | 'DIGRAPH'
+  | 'GRAPH'
+  | 'SUBGRAPH'
+  | 'NODE_KW'
+  | 'EDGE_KW'
+  | 'IDENTIFIER'
+  | 'ARROW'         // ->
+  | 'DASH_DASH'     // --
+  | 'LBRACE'        // {
+  | 'RBRACE'        // }
+  | 'LBRACKET'      // [
+  | 'RBRACKET'      // ]
+  | 'EQUALS'        // =
+  | 'SEMICOLON'     // ;
+  | 'COMMA'         // ,
+  | 'EOF';
+
+interface Token {
+  type: TokenType;
+  value: string;
+  line: number;
+  column: number;
+}
+
+class DotLexer {
+  private input: string;
+  private pos: number = 0;
+  private line: number = 1;
+  private col: number = 1;
+
+  constructor(input: string) {
+    this.input = input;
+  }
+
+  public tokenize(): Token[] {
+    const tokens: Token[] = [];
+    while (this.pos < this.input.length) {
+      this.skipWhitespaceAndComments();
+      if (this.pos >= this.input.length) break;
+
+      const ch = this.input[this.pos];
+      const startLine = this.line;
+      const startCol = this.col;
+
+      if (ch === '{') {
+        this.advance();
+        tokens.push({ type: 'LBRACE', value: '{', line: startLine, column: startCol });
+      } else if (ch === '}') {
+        this.advance();
+        tokens.push({ type: 'RBRACE', value: '}', line: startLine, column: startCol });
+      } else if (ch === '[') {
+        this.advance();
+        tokens.push({ type: 'LBRACKET', value: '[', line: startLine, column: startCol });
+      } else if (ch === ']') {
+        this.advance();
+        tokens.push({ type: 'RBRACKET', value: ']', line: startLine, column: startCol });
+      } else if (ch === '=') {
+        this.advance();
+        tokens.push({ type: 'EQUALS', value: '=', line: startLine, column: startCol });
+      } else if (ch === ';') {
+        this.advance();
+        tokens.push({ type: 'SEMICOLON', value: ';', line: startLine, column: startCol });
+      } else if (ch === ',') {
+        this.advance();
+        tokens.push({ type: 'COMMA', value: ',', line: startLine, column: startCol });
+      } else if (ch === '-' && this.peek() === '>') {
+        this.advance();
+        this.advance();
+        tokens.push({ type: 'ARROW', value: '->', line: startLine, column: startCol });
+      } else if (ch === '-' && this.peek() === '-') {
+        this.advance();
+        this.advance();
+        tokens.push({ type: 'DASH_DASH', value: '--', line: startLine, column: startCol });
+      } else if (ch === '"' || ch === "'") {
+        const val = this.readQuotedString(ch);
+        tokens.push({ type: 'IDENTIFIER', value: val, line: startLine, column: startCol });
+      } else if (this.isIdentStart(ch)) {
+        const val = this.readIdentifier();
+        const lower = val.toLowerCase();
+        if (lower === 'strict') {
+          tokens.push({ type: 'STRICT', value: val, line: startLine, column: startCol });
+        } else if (lower === 'digraph') {
+          tokens.push({ type: 'DIGRAPH', value: val, line: startLine, column: startCol });
+        } else if (lower === 'graph') {
+          tokens.push({ type: 'GRAPH', value: val, line: startLine, column: startCol });
+        } else if (lower === 'subgraph') {
+          tokens.push({ type: 'SUBGRAPH', value: val, line: startLine, column: startCol });
+        } else if (lower === 'node') {
+          tokens.push({ type: 'NODE_KW', value: val, line: startLine, column: startCol });
+        } else if (lower === 'edge') {
+          tokens.push({ type: 'EDGE_KW', value: val, line: startLine, column: startCol });
+        } else {
+          tokens.push({ type: 'IDENTIFIER', value: val, line: startLine, column: startCol });
+        }
+      } else {
+        throw new Error(`Unexpected character "${ch}" in DOT input at line ${this.line}, column ${this.col}`);
+      }
+    }
+
+    tokens.push({ type: 'EOF', value: '', line: this.line, column: this.col });
+    return tokens;
+  }
+
+  private advance(): string {
+    const ch = this.input[this.pos++];
+    if (ch === '\n') {
+      this.line++;
+      this.col = 1;
+    } else {
+      this.col++;
+    }
+    return ch;
+  }
+
+  private peek(): string | null {
+    return this.pos + 1 < this.input.length ? this.input[this.pos + 1] : null;
+  }
+
+  private skipWhitespaceAndComments(): void {
+    while (this.pos < this.input.length) {
+      const ch = this.input[this.pos];
+      if (ch === ' ' || ch === '\t' || ch === '\r' || ch === '\n') {
+        this.advance();
+        continue;
+      }
+
+      // Line comments: // or #
+      if (ch === '#' || (ch === '/' && this.peek() === '/')) {
+        while (this.pos < this.input.length && this.input[this.pos] !== '\n') {
+          this.advance();
+        }
+        continue;
+      }
+
+      // Block comments: /* ... */
+      if (ch === '/' && this.peek() === '*') {
+        const startLine = this.line;
+        const startCol = this.col;
+        this.advance(); // /
+        this.advance(); // *
+        let terminated = false;
+        while (this.pos < this.input.length) {
+          if (this.input[this.pos] === '*' && this.peek() === '/') {
+            this.advance(); // *
+            this.advance(); // /
+            terminated = true;
+            break;
+          }
+          this.advance();
+        }
+        if (!terminated) {
+          throw new Error(`Unterminated block comment starting at line ${startLine}, column ${startCol}`);
+        }
+        continue;
+      }
+
+      break;
+    }
+  }
+
+  private readQuotedString(quoteChar: string): string {
+    const startLine = this.line;
+    const startCol = this.col;
+    this.advance(); // opening quote
+    let str = '';
+
+    while (this.pos < this.input.length) {
+      const ch = this.input[this.pos];
+      if (ch === '\\') {
+        this.advance(); // skip backslash
+        if (this.pos >= this.input.length) break;
+        const esc = this.advance();
+        if (esc === 'n') str += '\n';
+        else if (esc === 't') str += '\t';
+        else if (esc === 'r') str += '\r';
+        else if (esc === '"') str += '"';
+        else if (esc === "'") str += "'";
+        else if (esc === '\\') str += '\\';
+        else str += esc;
+      } else if (ch === quoteChar) {
+        this.advance(); // closing quote
+        return str;
+      } else {
+        str += this.advance();
+      }
+    }
+
+    throw new Error(`Unterminated string literal starting at line ${startLine}, column ${startCol}`);
+  }
+
+  private isIdentStart(ch: string): boolean {
+    return /[a-zA-Z0-9_.-]/.test(ch);
+  }
+
+  private readIdentifier(): string {
+    let id = '';
+    while (this.pos < this.input.length) {
+      const ch = this.input[this.pos];
+      if (/[a-zA-Z0-9_.-]/.test(ch)) {
+        id += this.advance();
+      } else {
+        break;
+      }
+    }
+    return id;
+  }
 }
 
 /**
@@ -11,25 +222,53 @@ export interface ParseError {
  */
 export class GraphParser {
   /**
-   * Parses Graphviz DOT string into DirectedGraph.
+   * Parses Graphviz DOT string into DirectedGraph using token scanner.
    */
   public static parseDOT(dotString: string, graphId: string = 'dot-graph'): DirectedGraph {
-    if (!dotString || typeof dotString !== 'string') {
+    if (!dotString || typeof dotString !== 'string' || !dotString.trim()) {
       throw new Error('DOT input must be a non-empty string.');
     }
 
-    const cleanInput = dotString
-      .replace(/\/\*[\s\S]*?\*\//g, '') // remove block comments
-      .replace(/\/\/.*/g, '')           // remove line comments
-      .replace(/#.*/g, '');             // remove hash comments
+    const lexer = new DotLexer(dotString);
+    const tokens = lexer.tokenize();
+    let current = 0;
 
-    const digraphMatch = cleanInput.match(/(?:strict\s+)?digraph\s*([a-zA-Z0-9_-]*)\s*\{([\s\S]*)\}/i);
-    if (!digraphMatch) {
-      throw new Error('Invalid DOT format: Missing "digraph { ... }" declaration.');
+    function peek(): Token {
+      return tokens[current] ?? { type: 'EOF', value: '', line: 0, column: 0 };
     }
 
-    const graphName = digraphMatch[1] ? digraphMatch[1].trim() : graphId;
-    const body = digraphMatch[2];
+    function consume(expected?: TokenType): Token {
+      const tok = peek();
+      if (expected && tok.type !== expected) {
+        throw new Error(
+          `Syntax error at line ${tok.line}, column ${tok.column}: expected "${expected}" but got "${tok.type}" (${tok.value})`
+        );
+      }
+      current++;
+      return tok;
+    }
+
+    // Optional "strict"
+    if (peek().type === 'STRICT') {
+      consume('STRICT');
+    }
+
+    // Check for undirected graph rejection
+    if (peek().type === 'GRAPH') {
+      const gTok = consume('GRAPH');
+      throw new Error(
+        `Syntax error at line ${gTok.line}, column ${gTok.column}: Undirected graphs ('graph') are not supported. Please use 'digraph'.`
+      );
+    }
+
+    consume('DIGRAPH');
+
+    let graphName = graphId;
+    if (peek().type === 'IDENTIFIER') {
+      graphName = consume('IDENTIFIER').value;
+    }
+
+    consume('LBRACE');
 
     const metadata: GraphMetadata = {
       id: graphId,
@@ -39,83 +278,127 @@ export class GraphParser {
     const graph = new DirectedGraph(metadata);
     const nodesMap = new Map<string, GraphNode>();
     const edgesList: GraphEdge[] = [];
-
-    // Split statements by semicolon or newline
-    const statements = body
-      .split(/;|\n/)
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-
     let edgeCounter = 1;
 
-    const nodePattern = '(?:(?:"(?:[^"\\\\]|\\\\.)*")|(?:[a-zA-Z0-9_]+))';
-    const edgeRegex = new RegExp(`^(${nodePattern}(?:\\s*->\\s*${nodePattern})+)(?:\\s*\\[(.*)\\])?$`);
-    const nodeRegex = new RegExp(`^(${nodePattern})(?:\\s*\\[(.*)\\])?$`);
+    function parseAttributeBlock(): Record<string, string> {
+      const attrs: Record<string, string> = {};
+      consume('LBRACKET');
+      while (peek().type !== 'RBRACKET' && peek().type !== 'EOF') {
+        const keyTok = consume('IDENTIFIER');
+        const key = keyTok.value;
+        let val = '';
+        if (peek().type === 'EQUALS') {
+          consume('EQUALS');
+          const valTok = consume('IDENTIFIER');
+          val = valTok.value;
+        } else {
+          val = 'true';
+        }
+        attrs[key] = val;
 
-    for (let lineIndex = 0; lineIndex < statements.length; lineIndex++) {
-      const stmt = statements[lineIndex];
+        // Skip optional comma or semicolon
+        if (peek().type === 'COMMA' || peek().type === 'SEMICOLON') {
+          consume();
+        }
+      }
+      consume('RBRACKET');
+      return attrs;
+    }
 
-      // Skip global graph/node/edge attribute blocks e.g. graph [rankdir=LR]
-      if (/^(graph|node|edge)\s*\[/i.test(stmt)) {
+    while (peek().type !== 'RBRACE' && peek().type !== 'EOF') {
+      const tok = peek();
+
+      // Semicolon separator
+      if (tok.type === 'SEMICOLON') {
+        consume('SEMICOLON');
         continue;
       }
 
-      // Check for edge statement: A -> B [attrs] or A -> B -> C
-      if (stmt.includes('->')) {
-        const match = stmt.match(edgeRegex);
-        if (!match) {
-          throw new Error(`Syntax error at statement: "${stmt}"`);
+      // Reject subgraphs
+      if (tok.type === 'SUBGRAPH') {
+        throw new Error(
+          `Unsupported DOT feature at line ${tok.line}, column ${tok.column}: subgraphs are not supported. Please declare nodes and edges directly.`
+        );
+      }
+
+      // Global graph/node/edge attribute blocks: graph [...] / node [...] / edge [...]
+      if (tok.type === 'GRAPH' || tok.type === 'NODE_KW' || tok.type === 'EDGE_KW') {
+        consume();
+        if (peek().type === 'LBRACKET') {
+          parseAttributeBlock();
         }
+        continue;
+      }
 
-        const chainPart = match[1];
-        const attrPart = match[2];
-        const attributes = GraphParser.parseAttributes(attrPart);
+      // Reject undirected edge --
+      if (tok.type === 'DASH_DASH') {
+        throw new Error(
+          `Syntax error at line ${tok.line}, column ${tok.column}: Undirected edges ('--') are not supported in digraphs. Please use '->'.`
+        );
+      }
 
-        const nodeChain = chainPart
-          .split('->')
-          .map((n) => GraphParser.unquote(n.trim()));
+      // Must be an identifier for node or edge statement
+      if (tok.type === 'IDENTIFIER') {
+        const firstNode = consume('IDENTIFIER').value;
 
-        for (let i = 0; i < nodeChain.length - 1; i++) {
-          const source = nodeChain[i];
-          const target = nodeChain[i + 1];
-
-          if (!nodesMap.has(source)) {
-            nodesMap.set(source, { id: source, label: source });
+        // Edge statement chain: A -> B (-> C ...)*
+        if (peek().type === 'ARROW') {
+          const nodeChain = [firstNode];
+          while (peek().type === 'ARROW') {
+            consume('ARROW');
+            const nextNode = consume('IDENTIFIER').value;
+            nodeChain.push(nextNode);
           }
-          if (!nodesMap.has(target)) {
-            nodesMap.set(target, { id: target, label: target });
+
+          let edgeAttrs: Record<string, string> = {};
+          if (peek().type === 'LBRACKET') {
+            edgeAttrs = parseAttributeBlock();
           }
 
-          const edgeId = `e_${source}_${target}_${edgeCounter++}`;
-          edgesList.push({
-            id: edgeId,
-            source,
-            target,
-            label: attributes.label,
-            category: attributes.category,
-            metadata: attributes
+          for (let i = 0; i < nodeChain.length - 1; i++) {
+            const source = nodeChain[i];
+            const target = nodeChain[i + 1];
+
+            if (!nodesMap.has(source)) {
+              nodesMap.set(source, { id: source, label: source });
+            }
+            if (!nodesMap.has(target)) {
+              nodesMap.set(target, { id: target, label: target });
+            }
+
+            const edgeId = `e_${source}_${target}_${edgeCounter++}`;
+            edgesList.push({
+              id: edgeId,
+              source,
+              target,
+              label: edgeAttrs.label,
+              category: edgeAttrs.category,
+              metadata: edgeAttrs
+            });
+          }
+        } else {
+          // Node statement: A [attrs] or simply A
+          let nodeAttrs: Record<string, string> = {};
+          if (peek().type === 'LBRACKET') {
+            nodeAttrs = parseAttributeBlock();
+          }
+
+          const existing = nodesMap.get(firstNode);
+          nodesMap.set(firstNode, {
+            id: firstNode,
+            label: nodeAttrs.label || existing?.label || firstNode,
+            category: nodeAttrs.category || existing?.category,
+            metadata: { ...(existing?.metadata ?? {}), ...nodeAttrs }
           });
         }
       } else {
-        // Node statement: A [label="..."] or simply A
-        const match = stmt.match(nodeRegex);
-        if (match) {
-          const nodeId = GraphParser.unquote(match[1].trim());
-          const attrPart = match[2];
-          const attributes = GraphParser.parseAttributes(attrPart);
-
-          const existing = nodesMap.get(nodeId);
-          nodesMap.set(nodeId, {
-            id: nodeId,
-            label: attributes.label || existing?.label || nodeId,
-            category: attributes.category || existing?.category,
-            metadata: { ...(existing?.metadata ?? {}), ...attributes }
-          });
-        } else {
-          throw new Error(`Syntax error at statement: "${stmt}"`);
-        }
+        throw new Error(
+          `Unexpected token "${tok.value}" (${tok.type}) in DOT statement at line ${tok.line}, column ${tok.column}`
+        );
       }
     }
+
+    consume('RBRACE');
 
     // Add nodes to graph
     for (const node of nodesMap.values()) {
@@ -181,32 +464,5 @@ export class GraphParser {
       const msg = err instanceof Error ? err.message : String(err);
       throw new Error(`Failed to parse graph JSON: ${msg}`);
     }
-  }
-
-  private static parseAttributes(attrString?: string): Record<string, string> {
-    const result: Record<string, string> = {};
-    if (!attrString) return result;
-
-    const regex = /([a-zA-Z0-9_-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^,\s\]]+))/g;
-    let match: RegExpExecArray | null;
-
-    while ((match = regex.exec(attrString)) !== null) {
-      const key = match[1];
-      const val = match[2] ?? match[3] ?? match[4] ?? '';
-      result[key] = val;
-    }
-
-    return result;
-  }
-
-  private static unquote(str: string): string {
-    const trimmed = str.trim();
-    if (
-      (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-      (trimmed.startsWith("'") && trimmed.endsWith("'"))
-    ) {
-      return trimmed.slice(1, -1).replace(/\\"/g, '"').replace(/\\'/g, "'");
-    }
-    return trimmed;
   }
 }

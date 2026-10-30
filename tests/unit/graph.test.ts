@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { DirectedGraph } from '../../src/domain/graph/Graph.js';
 import { GraphParser } from '../../src/domain/graph/parser.js';
 import { DeterministicGraphGenerator } from '../../src/domain/graph/generator.js';
-import { getSampleGraphs } from '../../src/research/datasets/sampleGraphs.js';
+import { getSampleGraphs, getResearchStimuli, getFreeExplorationGraphs } from '../../src/research/datasets/sampleGraphs.js';
 
 describe('DirectedGraph Domain Model', () => {
   it('creates nodes and edges, rejects duplicates and invalid links', () => {
@@ -158,6 +158,82 @@ describe('Graph Parser', () => {
     expect(parsed.getNodeIds()).toEqual(['N1', 'N2']);
     expect(parsed.hasEdge('N1', 'N2')).toBe(true);
   });
+
+  it('correctly parses quoted identifiers containing "->"', () => {
+    const dot = `
+      digraph QuotedArrow {
+        "Node -> 1" -> "Node -> 2";
+      }
+    `;
+    const graph = GraphParser.parseDOT(dot);
+    expect(graph.getNodeIds()).toContain('Node -> 1');
+    expect(graph.getNodeIds()).toContain('Node -> 2');
+    expect(graph.hasEdge('Node -> 1', 'Node -> 2')).toBe(true);
+  });
+
+  it('correctly handles semicolons, commas, and comment markers inside quoted attributes', () => {
+    const dot = `
+      digraph SemicolonsAndComments {
+        A -> B [label="A; B, C", note="/* not a comment */", tag="// still text"];
+      }
+    `;
+    const graph = GraphParser.parseDOT(dot);
+    const edge = graph.getEdges()[0];
+    expect(edge.label).toBe('A; B, C');
+    expect(edge.metadata?.note).toBe('/* not a comment */');
+    expect(edge.metadata?.tag).toBe('// still text');
+  });
+
+  it('correctly handles escaped quotes and multiline attribute blocks', () => {
+    const dot = `
+      digraph EscapedAndMultiline {
+        A [
+          label="Node \\"Escaped\\""
+          category="primary"
+        ]
+        A -> B
+      }
+    `;
+    const graph = GraphParser.parseDOT(dot);
+    expect(graph.getNode('A')?.label).toBe('Node "Escaped"');
+    expect(graph.getNode('A')?.category).toBe('primary');
+    expect(graph.hasEdge('A', 'B')).toBe(true);
+  });
+
+  it('parses chained directed edge statements A -> B -> C', () => {
+    const dot = `
+      digraph ChainedEdges {
+        A -> B -> C -> D [label="chain"];
+      }
+    `;
+    const graph = GraphParser.parseDOT(dot);
+    expect(graph.getNodeIds()).toEqual(['A', 'B', 'C', 'D']);
+    expect(graph.hasEdge('A', 'B')).toBe(true);
+    expect(graph.hasEdge('B', 'C')).toBe(true);
+    expect(graph.hasEdge('C', 'D')).toBe(true);
+    expect(graph.getEdges()).toHaveLength(3);
+  });
+
+  it('rejects unsupported undirected graphs, undirected edges, and subgraphs with clear errors', () => {
+    // Undirected graph keyword
+    expect(() => GraphParser.parseDOT('graph G { A -- B }')).toThrow(/undirected graphs/i);
+
+    // Undirected edge token in digraph
+    expect(() => GraphParser.parseDOT('digraph G { A -- B }')).toThrow(/undirected edges/i);
+
+    // Subgraph
+    expect(() => GraphParser.parseDOT('digraph G { subgraph cluster_0 { A -> B; } }')).toThrow(
+      /subgraphs are not supported/i
+    );
+
+    // Unterminated string
+    expect(() => GraphParser.parseDOT('digraph G { "A -> B; }')).toThrow(/unterminated string literal/i);
+
+    // Unterminated block comment
+    expect(() => GraphParser.parseDOT('/* open comment digraph G { A -> B; }')).toThrow(
+      /unterminated block comment/i
+    );
+  });
 });
 
 describe('Deterministic Graph Generator', () => {
@@ -191,25 +267,25 @@ describe('Deterministic Graph Generator', () => {
   });
 });
 
-describe('Sample Datasets', () => {
+describe('Sample Datasets & Stimulus Isolation', () => {
   it('loads all standard research graphs with correct structures', () => {
-    const datasets = getSampleGraphs();
-    expect(Object.keys(datasets)).toHaveLength(6);
+    const stimuli = getResearchStimuli();
+    expect(Object.keys(stimuli)).toHaveLength(6);
 
-    const exp1 = datasets['graph-exp-1'];
+    const exp1 = stimuli['graph-exp-1'];
     expect(exp1.getBranchingNodes()).toContain('A');
     expect(exp1.getBranchingNodes()).toContain('D');
     expect(exp1.getConvergenceNodes()).toContain('D');
 
-    const exp2 = datasets['graph-exp-2'];
+    const exp2 = stimuli['graph-exp-2'];
     expect(exp2.hasCycle()).toBe(true);
 
-    const exp3 = datasets['graph-exp-3'];
+    const exp3 = stimuli['graph-exp-3'];
     expect(exp3.getNodeIds()).toHaveLength(9);
   });
 
   it('anonymizes graph titles and descriptions to prevent experimental answer leaks', () => {
-    const datasets = getSampleGraphs();
+    const datasets = getResearchStimuli();
     for (const [, g] of Object.entries(datasets)) {
       const meta = g.getMetadata();
       expect(meta.name).not.toMatch(/cycle/i);
@@ -218,6 +294,23 @@ describe('Sample Datasets', () => {
       expect(meta.description ?? '').not.toMatch(/cycle/i);
       expect(meta.description ?? '').not.toMatch(/feedback/i);
     }
+  });
+
+  it('strictly isolates free exploration graphs from research stimuli', () => {
+    const freeGraphs = getFreeExplorationGraphs();
+    const stimuli = getResearchStimuli();
+
+    const freeKeys = Object.keys(freeGraphs);
+    const stimuliKeys = Object.keys(stimuli);
+
+    expect(freeKeys.length).toBeGreaterThanOrEqual(3);
+    for (const key of freeKeys) {
+      expect(stimuliKeys).not.toContain(key);
+    }
+
+    // Default sample graphs must only expose free exploration graphs
+    const defaultSamples = getSampleGraphs();
+    expect(Object.keys(defaultSamples)).toEqual(freeKeys);
   });
 
   it('enumerates all elementary simple cycles without duplicate permutations', () => {
