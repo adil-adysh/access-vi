@@ -1,5 +1,9 @@
 # Decisions, assumptions, risks and open questions
 
+## Accepted research strategy (2026-10-30)
+
+**Research order:** [Faithful access → independent fidelity validation → evidence-led audio-first optimization](13-faithful-access-to-audio-first-research-strategy.md). The faithful mapping is a **reference baseline**, not a permanent prohibition on optional, clearly designated auditory navigation aids. Full original information must remain accessible throughout any optimization. This is a project-owner decision; coverage, usability and comparative benefits remain unproven until tested. The existing A/B/C research conditions are not these stages.
+
 ## Accepted governing requirement (2026-10-30)
 
 **Mandatory:** [Visual–auditory semantic parity and screen-reader ownership of text](11-visual-auditory-parity-governing-rules.md). Identical non-text node appearance requires identical intrinsic node sounds, distinctive shape/style must have correspondingly distinctive and stable non-speech cues, and **all text** (especially node and edge labels) must be conveyed through the screen reader. Arbitrary ID-to-pitch encoding is nonconforming. This is an accepted project-owner design constraint, not an empirically proven effectiveness claim. Correct with a separately versioned mapping and revised protocol; preserve legacy data.
