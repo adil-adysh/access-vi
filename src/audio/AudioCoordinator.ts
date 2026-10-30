@@ -42,6 +42,11 @@ export class AudioCoordinator {
     state: NavigationState,
     action: NavigationActionType
   ): PlaybackHandle | null {
+    if (action === 'CANCEL_PLAYBACK') {
+      this.cancelPlayback();
+      return null;
+    }
+
     // Condition A: Speech only -> no non-speech audio synthesized
     if (state.condition === 'condition_a_speech') {
       this.cancelPlayback();

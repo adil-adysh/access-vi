@@ -66,9 +66,30 @@ export class ToneSynthesizer {
       try {
         const now = context.currentTime;
         gainNode.gain.cancelScheduledValues(now);
-        gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+        if (t0 > now) {
+          // Tone was scheduled in the future: immediately silence and disconnect
+          gainNode.gain.setValueAtTime(0, now);
+          try {
+            gainNode.disconnect();
+          } catch {}
+          try {
+            osc.stop(t0);
+          } catch {}
+          return;
+        }
+
+        // Tone has started: ramp down smoothly to avoid clicks
+        const currentGain = Math.max(0.0001, gainNode.gain.value);
+        gainNode.gain.setValueAtTime(currentGain, now);
         gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.02);
-        osc.stop(now + 0.025);
+        try {
+          osc.stop(now + 0.025);
+        } catch {}
+        setTimeout(() => {
+          try {
+            gainNode.disconnect();
+          } catch {}
+        }, 35);
       } catch {
         // already stopped
       }

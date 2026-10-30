@@ -43,6 +43,7 @@ export class SequenceScheduler {
     }
 
     let finishTimeout: ReturnType<typeof setTimeout> | undefined;
+    let settlePromise: () => void = () => {};
     const totalDurationMs = ((sequence.totalDurationSec / speed) + 0.1) * 1000;
 
     const cancel = () => {
@@ -53,11 +54,13 @@ export class SequenceScheduler {
         h.stop();
       }
       this.activePlaybacks.delete(sequence.id);
+      settlePromise();
     };
 
     this.activePlaybacks.set(sequence.id, cancel);
 
     const promise = new Promise<void>((resolve) => {
+      settlePromise = resolve;
       finishTimeout = setTimeout(() => {
         isFinished = true;
         this.activePlaybacks.delete(sequence.id);
