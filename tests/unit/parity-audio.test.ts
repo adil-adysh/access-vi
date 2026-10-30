@@ -317,4 +317,20 @@ describe('Visual-Auditory Parity Sonification & Governing Rules (Section 8 Verif
       expect(note.tone.pan).toBe(0.0);
     }
   });
+
+  it('Fix 9: allows empirical gain adjustment without altering reference pitch or duration', () => {
+    const reg = new ParitySoundRegistry();
+    expect(reg.getShapeGain('circle')).toBe(0.28);
+    expect(reg.getShapeGain('diamond')).toBe(0.14);
+
+    reg.setShapeGain('diamond', 0.18);
+    expect(reg.getShapeGain('diamond')).toBe(0.18);
+
+    const diamondTone = reg.createNodeCategoryTone('diamond');
+    expect(diamondTone.gain).toBe(0.18);
+    expect(diamondTone.frequency).toBe(300);
+
+    reg.resetToDefaultGains();
+    expect(reg.getShapeGain('diamond')).toBe(0.14);
+  });
 });

@@ -38,6 +38,18 @@ export class ParitySonificationEngine {
     this.registry = new ParitySoundRegistry(registryConfig ?? DEFAULT_PARITY_CONFIG_V1);
   }
 
+  public setShapeGain(shape: NodeShape, gain: number): void {
+    this.registry.setShapeGain(shape, gain);
+  }
+
+  public getShapeGain(shape: NodeShape): number {
+    return this.registry.getShapeGain(shape);
+  }
+
+  public resetShapeGains(): void {
+    this.registry.resetToDefaultGains();
+  }
+
   public getRegistry(): ParitySoundRegistry {
     return this.registry;
   }

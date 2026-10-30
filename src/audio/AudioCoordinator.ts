@@ -1,6 +1,9 @@
 import { AudioContextManager } from './AudioContextManager.js';
 import { SequenceScheduler, type PlaybackHandle } from './scheduling/SequenceScheduler.js';
-import { SonificationStrategy } from './sonification/SonificationStrategy.js';
+import type { ISonificationStrategy } from './sonification/types.js';
+import { ParitySonificationStrategy } from './sonification/ParitySonificationStrategy.js';
+import { LegacySonificationStrategy } from './sonification/LegacySonificationStrategy.js';
+import { SpeechOnlyStrategy } from './sonification/SpeechOnlyStrategy.js';
 import type {
   SonificationConfig,
   SemanticAudioEvent,
@@ -8,19 +11,25 @@ import type {
 } from './types.js';
 import { DEFAULT_SONIFICATION_CONFIG } from './types.js';
 import type { NavigationState, NavigationActionType } from '../domain/navigation/types.js';
+import type { DirectedGraph } from '../domain/graph/Graph.js';
 
 export class AudioCoordinator {
   private readonly contextManager: AudioContextManager;
   private scheduler: SequenceScheduler | null = null;
   private config: SonificationConfig;
   private currentPlayback: PlaybackHandle | null = null;
+  private strategy: ISonificationStrategy;
+  private legacyStrategy: LegacySonificationStrategy | null = null;
+  private speechOnlyStrategy: SpeechOnlyStrategy | null = null;
 
   constructor(
     contextManager?: AudioContextManager,
-    config: SonificationConfig = DEFAULT_SONIFICATION_CONFIG
+    config: SonificationConfig = DEFAULT_SONIFICATION_CONFIG,
+    strategy?: ISonificationStrategy
   ) {
     this.contextManager = contextManager ?? new AudioContextManager();
     this.config = config;
+    this.strategy = strategy ?? new ParitySonificationStrategy();
   }
 
   public getConfig(): SonificationConfig {
@@ -36,6 +45,25 @@ export class AudioCoordinator {
 
   public getContextManager(): AudioContextManager {
     return this.contextManager;
+  }
+
+  public getStrategy(): ISonificationStrategy {
+    return this.strategy;
+  }
+
+  public setStrategy(strategy: ISonificationStrategy): void {
+    this.cancelPlayback();
+    this.strategy = strategy;
+  }
+
+  public setStrategyByVersion(version: string): void {
+    if (version === 'legacy-study-v1') {
+      this.setStrategy(this.legacyStrategy ??= new LegacySonificationStrategy());
+    } else if (version === 'speech-only-v1') {
+      this.setStrategy(this.speechOnlyStrategy ??= new SpeechOnlyStrategy());
+    } else {
+      this.setStrategy(new ParitySonificationStrategy());
+    }
   }
 
   public handleNavigationAction(
@@ -62,15 +90,30 @@ export class AudioCoordinator {
     const semanticEvent = this.createSemanticEvent(state, action, isSpatial);
     if (!semanticEvent) return null;
 
-    return this.playSemanticEvent(semanticEvent, activeConfig);
+    // Governing Rule E: If running legacy condition B or C, strictly use LegacySonificationStrategy
+    if (state.condition === 'condition_b_non_spatial' || state.condition === 'condition_c_spatial') {
+      const legacy = (this.legacyStrategy ??= new LegacySonificationStrategy());
+      return this.executeStrategySequence(legacy, semanticEvent, activeConfig, state.graph);
+    }
+
+    return this.executeStrategySequence(this.strategy, semanticEvent, activeConfig, state.graph);
   }
 
   public playSemanticEvent(
     event: SemanticAudioEvent,
-    configOverride?: SonificationConfig
+    configOverride?: SonificationConfig,
+    graph?: DirectedGraph
   ): PlaybackHandle | null {
     const config = configOverride ?? this.config;
+    return this.executeStrategySequence(this.strategy, event, config, graph);
+  }
 
+  private executeStrategySequence(
+    strategy: ISonificationStrategy,
+    event: SemanticAudioEvent,
+    config: SonificationConfig,
+    graph?: DirectedGraph
+  ): PlaybackHandle | null {
     try {
       const ctx = this.contextManager.getAudioContext();
       if (!this.scheduler) {
@@ -79,7 +122,9 @@ export class AudioCoordinator {
 
       this.cancelPlayback();
 
-      const sequence = SonificationStrategy.mapEventToSequence(event, config);
+      const sequence = strategy.mapEventToSequence(event, config, graph);
+      if (!sequence) return null;
+
       this.currentPlayback = this.scheduler.scheduleSequence(sequence, config.playbackSpeed);
       return this.currentPlayback;
     } catch (err) {

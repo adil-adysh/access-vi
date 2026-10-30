@@ -60,7 +60,7 @@ export const DEFAULT_PARITY_CONFIG_V1: ParitySoundRegistryConfig = {
     },
     diamond: {
       waveform: 'square',
-      gain: 0.14, // Calibrated down to match perceived loudness of sine wave
+      gain: 0.14, // Initial candidate gain to mitigate perceived loudness of odd harmonics
       durationSec: 0.20,
       envelope: {
         attackSec: 0.03, // Softened attack to prevent harsh click
@@ -112,6 +112,21 @@ export class ParitySoundRegistry {
           }
         }
       };
+    }
+  }
+
+  public getShapeGain(shape: NodeShape): number {
+    return this.getShapeDefinition(shape).gain;
+  }
+
+  public setShapeGain(shape: NodeShape, gain: number): void {
+    const clamped = Math.max(0, Math.min(1.0, gain));
+    this.updateShapeDefinition(shape, { gain: clamped });
+  }
+
+  public resetToDefaultGains(): void {
+    for (const shape of ['circle', 'rectangle', 'diamond'] as const) {
+      this.updateShapeDefinition(shape, { gain: DEFAULT_PARITY_CONFIG_V1.shapes[shape].gain });
     }
   }
 
