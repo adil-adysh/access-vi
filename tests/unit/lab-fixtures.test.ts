@@ -34,6 +34,10 @@ describe('Laboratory Fixtures Validation (Fix 2 & Fix 6)', () => {
     const listeningCategories = [
       'shape_discrimination',
       'shape_recognition',
+      'identity_vs_category',
+      'perceived_hierarchy',
+      'shape_independence',
+      'geometry_invariance',
       'destination_recognition'
     ];
 

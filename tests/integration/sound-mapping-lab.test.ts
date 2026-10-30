@@ -51,6 +51,36 @@ describe('Sound Mapping Laboratory Integration (Phase 2)', () => {
     expect(labManager.getMode()).toBe('training');
   });
 
+  it('strictly isolates training and blinded assessment responses, timing, and records (Finding 2)', () => {
+    // 1. Answer trial 0 in training mode
+    labManager.jumpToTest(0);
+    const tc0 = labManager.getCurrentTestCase()!;
+    labManager.submitResponse('same_category', 'Category test', 'Training observation');
+
+    expect(labManager.getRecords().length).toBe(1);
+    expect(labManager.getRecordForTestCase(tc0.id)?.mode).toBe('training');
+
+    // 2. Switch to blinded assessment mode
+    labManager.setMode('assessment');
+
+    // Assessment records must be completely empty!
+    expect(labManager.getRecords().length).toBe(0);
+    expect(labManager.getRecordForTestCase(tc0.id)).toBeUndefined();
+
+    // 3. Submit answer in assessment mode
+    labManager.submitResponse('same_category', undefined, undefined);
+    expect(labManager.getRecords().length).toBe(1);
+    expect(labManager.getRecordForTestCase(tc0.id)?.mode).toBe('assessment');
+
+    // 4. Switch back to training mode
+    labManager.setMode('training');
+    expect(labManager.getRecords().length).toBe(1);
+    expect(labManager.getRecordForTestCase(tc0.id)?.mode).toBe('training');
+
+    // Total records stored across all modes
+    expect(labManager.getAllRecords().length).toBe(2);
+  });
+
   it('navigates tests sequentially and supports direct jumps', () => {
     expect(labManager.getCurrentTestIndex()).toBe(0);
 

@@ -11,7 +11,7 @@ import {
   type NodeShape
 } from '../../domain/presentation/types.js';
 import type { GraphNode, GraphEdge } from '../../domain/graph/types.js';
-import type { AudioSequence } from '../types.js';
+import type { AudioSequence, ScheduledAudioNote } from '../types.js';
 
 /**
  * ParitySonificationEngine coordinates audio synthesis strictly compliant with
@@ -32,10 +32,14 @@ export class ParitySonificationEngine {
 
   constructor(
     contextManager?: AudioContextManager,
-    registryConfig?: ParitySoundRegistryConfig
+    registryOrConfig?: ParitySoundRegistry | ParitySoundRegistryConfig
   ) {
     this.contextManager = contextManager ?? new AudioContextManager();
-    this.registry = new ParitySoundRegistry(registryConfig ?? DEFAULT_PARITY_CONFIG_V1);
+    if (registryOrConfig instanceof ParitySoundRegistry) {
+      this.registry = registryOrConfig;
+    } else {
+      this.registry = new ParitySoundRegistry(registryOrConfig ?? DEFAULT_PARITY_CONFIG_V1);
+    }
   }
 
   public setShapeGain(shape: NodeShape, gain: number): void {
@@ -166,17 +170,18 @@ export class ParitySonificationEngine {
   }
 
   /**
-   * Plays a complete directed connection journey between source and target:
+   * Builds an AudioSequence for a directed connection journey between source and target:
    * [Source Shape Cue] -> [Direction Cue] -> [Target Shape Cue]
    */
-  public playFullDirectedRelationship(
+  public buildFullDirectedRelationshipSequence(
     sourceShape: NodeShape,
     targetShape: NodeShape,
-    direction: 'outgoing' | 'incoming' = 'outgoing'
-  ): PlaybackHandle | null {
+    direction: 'outgoing' | 'incoming' = 'outgoing',
+    lineStyle: 'solid' | 'dashed' | 'dotted' = 'solid'
+  ): AudioSequence {
     const sourceTone = this.registry.createNodeCategoryTone(sourceShape);
     const targetTone = this.registry.createNodeCategoryTone(targetShape);
-    const directionSeq = this.registry.createRelationshipDirectionSequence(direction);
+    const directionSeq = this.registry.createRelationshipDirectionSequence(direction, 'rel', lineStyle);
 
     const sourceDuration = sourceTone.durationSec;
     const gap1 = 0.12;
@@ -186,7 +191,7 @@ export class ParitySonificationEngine {
     const targetOffset = dirOffset + dirDuration + gap2;
     const totalDuration = targetOffset + targetTone.durationSec + 0.05;
 
-    const notes = [
+    const notes: ScheduledAudioNote[] = [
       {
         timeOffsetSec: 0.0,
         tone: sourceTone
@@ -201,10 +206,62 @@ export class ParitySonificationEngine {
       }
     ];
 
-    const seq: AudioSequence = {
+    return {
       id: `full-rel-${sourceShape}-${direction}-${targetShape}-${Date.now()}`,
       notes,
       totalDurationSec: totalDuration
+    };
+  }
+
+  /**
+   * Plays a complete directed connection journey between source and target:
+   * [Source Shape Cue] -> [Direction Cue] -> [Target Shape Cue]
+   */
+  public playFullDirectedRelationship(
+    sourceShape: NodeShape,
+    targetShape: NodeShape,
+    direction: 'outgoing' | 'incoming' = 'outgoing',
+    lineStyle: 'solid' | 'dashed' | 'dotted' = 'solid'
+  ): PlaybackHandle | null {
+    const seq = this.buildFullDirectedRelationshipSequence(sourceShape, targetShape, direction, lineStyle);
+    return this.schedule(seq);
+  }
+
+  /**
+   * Plays sequential comparison of two directed edge journeys with an audible gap.
+   * Enables genuine empirical paired trials for shape-independence and geometry-invariance.
+   */
+  public playTwoJourneyComparison(
+    journey1: { shape1: NodeShape; shape2: NodeShape; direction: 'outgoing' | 'incoming'; lineStyle?: 'solid' | 'dashed' | 'dotted' },
+    journey2: { shape1: NodeShape; shape2: NodeShape; direction: 'outgoing' | 'incoming'; lineStyle?: 'solid' | 'dashed' | 'dotted' },
+    gapSec: number = 0.35
+  ): PlaybackHandle | null {
+    const seq1 = this.buildFullDirectedRelationshipSequence(
+      journey1.shape1,
+      journey1.shape2,
+      journey1.direction,
+      journey1.lineStyle ?? 'solid'
+    );
+    const seq2 = this.buildFullDirectedRelationshipSequence(
+      journey2.shape1,
+      journey2.shape2,
+      journey2.direction,
+      journey2.lineStyle ?? 'solid'
+    );
+
+    const offset2 = seq1.totalDurationSec + gapSec;
+    const notes: ScheduledAudioNote[] = [
+      ...seq1.notes,
+      ...seq2.notes.map((n) => ({
+        timeOffsetSec: offset2 + n.timeOffsetSec,
+        tone: n.tone
+      }))
+    ];
+
+    const seq: AudioSequence = {
+      id: `compare-journeys-${Date.now()}`,
+      notes,
+      totalDurationSec: offset2 + seq2.totalDurationSec + 0.05
     };
 
     return this.schedule(seq);

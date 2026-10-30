@@ -13,6 +13,32 @@ export type LabTestCategory =
 
 export type LabMode = 'training' | 'assessment';
 
+export type LabStimulusType =
+  | 'single_shape'
+  | 'compare_shapes'
+  | 'edge_journey'
+  | 'compare_edge_journeys'
+  | 'direction_only';
+
+export interface LabSoundStimulus {
+  readonly type: LabStimulusType;
+  readonly shape1?: NodeShape;
+  readonly shape2?: NodeShape;
+  readonly direction?: 'outgoing' | 'incoming';
+  readonly journey1?: {
+    readonly shape1: NodeShape;
+    readonly shape2: NodeShape;
+    readonly direction: 'outgoing' | 'incoming';
+    readonly lineStyle?: 'solid' | 'dashed' | 'dotted';
+  };
+  readonly journey2?: {
+    readonly shape1: NodeShape;
+    readonly shape2: NodeShape;
+    readonly direction: 'outgoing' | 'incoming';
+    readonly lineStyle?: 'solid' | 'dashed' | 'dotted';
+  };
+}
+
 export interface LabAnswerOption {
   readonly id: string;
   readonly label: string;
@@ -44,12 +70,7 @@ export interface LabTestCase {
   readonly prompt: string;
   readonly options: readonly LabAnswerOption[];
   readonly expectedAnswerId?: string; // Stable identifier, never a raw response string
-  readonly soundStimulus: {
-    readonly type: 'single_shape' | 'compare_shapes' | 'edge_journey' | 'direction_only';
-    readonly shape1?: NodeShape;
-    readonly shape2?: NodeShape;
-    readonly direction?: 'outgoing' | 'incoming';
-  };
+  readonly soundStimulus: LabSoundStimulus;
   readonly visualStimulus?: {
     readonly nodes: readonly LabNodeStimulus[];
     readonly edges: readonly LabEdgeStimulus[];

@@ -63,6 +63,7 @@ export class LabManager {
   public setMode(mode: LabMode): void {
     if (this.mode !== mode) {
       this.mode = mode;
+      this.startActiveTestTiming();
       this.notify();
     }
   }
@@ -103,12 +104,23 @@ export class LabManager {
     return this.currentReplayCount;
   }
 
-  public getRecords(): readonly LabTestRecord[] {
+  public getRecords(mode?: LabMode): readonly LabTestRecord[] {
+    if (mode) {
+      return this.records.filter((r) => r.mode === mode);
+    }
+    return this.records.filter((r) => r.mode === this.mode);
+  }
+
+  public getAllRecords(): readonly LabTestRecord[] {
     return [...this.records];
   }
 
-  public clearRecords(): void {
-    this.records = [];
+  public clearRecords(mode?: LabMode): void {
+    if (mode) {
+      this.records = this.records.filter((r) => r.mode !== mode);
+    } else {
+      this.records = [];
+    }
     this.notify();
   }
 
@@ -178,6 +190,12 @@ export class LabManager {
         }
         break;
 
+      case 'compare_edge_journeys':
+        if (stim.journey1 && stim.journey2) {
+          this.audioEngine.playTwoJourneyComparison(stim.journey1, stim.journey2);
+        }
+        break;
+
       case 'direction_only':
         if (stim.direction) {
           this.audioEngine.playRelationshipDirection(stim.direction);
@@ -243,33 +261,36 @@ export class LabManager {
       timestamp: new Date().toISOString()
     };
 
-    // Remove existing record for the same testCaseId if already answered
-    this.records = this.records.filter((r) => r.testCaseId !== tc.id);
+    // Remove existing record for the same testCaseId and mode if already answered
+    this.records = this.records.filter((r) => !(r.testCaseId === tc.id && r.mode === this.mode));
     this.records.push(record);
 
     this.notify();
     return record;
   }
 
-  public getRecordForTestCase(testCaseId: string): LabTestRecord | undefined {
-    return this.records.find((r) => r.testCaseId === testCaseId);
+  public getRecordForTestCase(testCaseId: string, mode?: LabMode): LabTestRecord | undefined {
+    const targetMode = mode ?? this.mode;
+    return this.records.find((r) => r.testCaseId === testCaseId && r.mode === targetMode);
   }
 
-  public getSessionSummary(): LabSessionSummary {
-    const totalTrials = this.records.length;
-    const scoredRecords = this.records.filter((r) => r.isCorrect !== null);
+  public getSessionSummary(mode?: LabMode): LabSessionSummary {
+    const targetMode = mode ?? this.mode;
+    const modeRecords = this.records.filter((r) => r.mode === targetMode);
+    const totalTrials = modeRecords.length;
+    const scoredRecords = modeRecords.filter((r) => r.isCorrect !== null);
     const scoredTrials = scoredRecords.length;
     const correctTrials = scoredRecords.filter((r) => r.isCorrect === true).length;
     const accuracyPercent = scoredTrials > 0 ? (correctTrials / scoredTrials) * 100 : 0;
 
     const avgReplayCount =
       totalTrials > 0
-        ? this.records.reduce((sum, r) => sum + r.replayCount, 0) / totalTrials
+        ? modeRecords.reduce((sum, r) => sum + r.replayCount, 0) / totalTrials
         : 0;
 
     const avgResponseDurationMs =
       totalTrials > 0
-        ? this.records.reduce((sum, r) => sum + r.responseDurationMs, 0) / totalTrials
+        ? modeRecords.reduce((sum, r) => sum + r.responseDurationMs, 0) / totalTrials
         : 0;
 
     return {
@@ -282,18 +303,21 @@ export class LabManager {
     };
   }
 
-  public exportJSON(): string {
+  public exportJSON(mode?: LabMode): string {
+    const targetMode = mode ?? this.mode;
     const payload = {
       exportedAt: new Date().toISOString(),
       mappingVersion: this.audioEngine?.getRegistry().getVersion() ?? 'visual-auditory-parity-v1',
-      mode: this.mode,
-      summary: this.getSessionSummary(),
-      records: this.records
+      mode: targetMode,
+      summary: this.getSessionSummary(targetMode),
+      records: this.getRecords(targetMode)
     };
     return JSON.stringify(payload, null, 2);
   }
 
-  public exportCSV(): string {
+  public exportCSV(mode?: LabMode): string {
+    const targetMode = mode ?? this.mode;
+    const modeRecords = this.getRecords(targetMode);
     const headers = [
       'timestamp',
       'mappingVersion',
@@ -316,7 +340,7 @@ export class LabManager {
       return `"${str}"`;
     }
 
-    const rows = this.records.map((r) => [
+    const rows = modeRecords.map((r) => [
       escapeCSV(r.timestamp),
       escapeCSV(r.mappingVersion),
       escapeCSV(r.mode),

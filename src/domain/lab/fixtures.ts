@@ -251,14 +251,14 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
     category: 'identity_vs_category',
     title: 'Identity vs Category: Node A and Node B',
     instructions:
-      'Listen to Sound 1 (Node A: "User Accounts") and Sound 2 (Node B: "Billing Service"). Both nodes visually appear as circles.',
+      'Listen to Sound 1 (Node A: "User Accounts") and Sound 2 (Node B: "Billing Service"). Both nodes belong to the graph and have distinct labels.',
     prompt:
-      'Given that Node A and Node B produce the same intrinsic sound, what does this acoustic match convey under visual-auditory parity?',
+      'Given that Node A and Node B produce the same intrinsic category sound, what does this acoustic match convey under visual-auditory parity?',
     options: [
       {
         id: 'same_category_distinct_entities',
         label:
-          'Both nodes belong to the same visual shape category (Circle), but remain distinct entities with independent labels'
+          'Both nodes belong to the same visual shape category, but remain distinct entities with independent labels'
       },
       {
         id: 'exact_same_entity',
@@ -280,7 +280,8 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
         { id: 'A', label: 'User Accounts', shape: 'circle', x: 80, y: 80 },
         { id: 'B', label: 'Billing Service', shape: 'circle', x: 200, y: 80 }
       ],
-      edges: []
+      edges: [],
+      blindInAssessment: true
     },
     supportsPerceivedMeaning: true
   },
@@ -289,13 +290,13 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
     category: 'identity_vs_category',
     title: 'Identity vs Category: Server Alpha and Database Omega',
     instructions:
-      'Listen to Sound A (Node A: "Server Alpha", Circle) and Sound B (Node B: "Database Omega", Rectangle).',
+      'Listen to Sound A (Node A: "Server Alpha") and Sound B (Node B: "Database Omega").',
     prompt: 'What does the acoustic difference between Sound A and Sound B convey?',
     options: [
       {
         id: 'different_categories',
         label:
-          'Different visual shape categories (Circle vs Rectangle) for two distinct node entities'
+          'Different visual shape categories for two distinct node entities'
       },
       {
         id: 'higher_priority',
@@ -317,7 +318,8 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
         { id: 'A', label: 'Server Alpha', shape: 'circle', x: 80, y: 80 },
         { id: 'B', label: 'Database Omega', shape: 'rectangle', x: 200, y: 80 }
       ],
-      edges: []
+      edges: [],
+      blindInAssessment: true
     },
     supportsPerceivedMeaning: true
   },
@@ -326,13 +328,13 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
     category: 'identity_vs_category',
     title: 'Identity vs Category: Cache Cluster and Analytics Engine',
     instructions:
-      'Node B is "Cache Cluster" and Node C is "Analytics Engine", both rectangles. Listen to both sounds.',
+      'Listen to Sound B (Node B: "Cache Cluster") and Sound C (Node C: "Analytics Engine").',
     prompt: 'What does the acoustic match between B and C indicate?',
     options: [
       {
         id: 'same_category_distinct_entities',
         label:
-          'Same visual shape category (Rectangle) with independent node identities identified by their screen-reader labels'
+          'Same visual shape category with independent node identities identified by their screen-reader labels'
       },
       {
         id: 'exact_same_entity',
@@ -354,20 +356,21 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
         { id: 'B', label: 'Cache Cluster', shape: 'rectangle', x: 80, y: 80 },
         { id: 'C', label: 'Analytics Engine', shape: 'rectangle', x: 200, y: 80 }
       ],
-      edges: []
+      edges: [],
+      blindInAssessment: true
     },
     supportsPerceivedMeaning: true
   },
 
   // ----------------------------------------------------
-  // Capability D: Perceived Hierarchy Testing
+  // Capability D: Perceived Hierarchy Testing (Subjective Gestalt Perception)
   // ----------------------------------------------------
   {
     id: 'perceived-hier-01',
     category: 'perceived_hierarchy',
-    title: 'Perceived Hierarchy: Circle vs Rectangle',
+    title: 'Perceived Hierarchy: Waveform Timbre Pair 1',
     instructions:
-      'Listen to Sound 1 (Circle) and Sound 2 (Rectangle). Both are played at 300 Hz carrier frequency.',
+      'Listen to Sound 1 and Sound 2 using the playback controls. Both are presented at the reference 300 Hz carrier frequency.',
     prompt:
       'Comparing Sound 1 and Sound 2, does either sound feel more important, dominant, or higher in status, or do they feel like neutral peers?',
     options: [
@@ -377,14 +380,14 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
       },
       {
         id: 'sound1_dominant',
-        label: 'Sound 1 feels higher, more important, or higher priority'
+        label: 'Sound 1 feels higher, more dominant, or higher priority'
       },
       {
         id: 'sound2_dominant',
-        label: 'Sound 2 feels higher, more important, or higher priority'
+        label: 'Sound 2 feels higher, more dominant, or higher priority'
       }
     ],
-    expectedAnswerId: 'neutral_peers',
+    // Finding 4: Subjective perception must NOT be graded with expectedAnswerId
     soundStimulus: {
       type: 'compare_shapes',
       shape1: 'circle',
@@ -403,9 +406,9 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
   {
     id: 'perceived-hier-02',
     category: 'perceived_hierarchy',
-    title: 'Perceived Hierarchy: Circle vs Diamond',
+    title: 'Perceived Hierarchy: Waveform Timbre Pair 2',
     instructions:
-      'Listen to Sound 1 (Circle) and Sound 2 (Diamond softened square wave at 300 Hz).',
+      'Listen to Sound 1 and Sound 2 using the playback controls. Both are presented at the reference 300 Hz carrier frequency.',
     prompt:
       'Comparing Sound 1 and Sound 2, does either sound convey an unintended hierarchical rank?',
     options: [
@@ -422,7 +425,7 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
         label: 'Sound 2 feels dominant or higher rank'
       }
     ],
-    expectedAnswerId: 'neutral_peers',
+    // Finding 4: Subjective perception must NOT be graded with expectedAnswerId
     soundStimulus: {
       type: 'compare_shapes',
       shape1: 'circle',
@@ -524,37 +527,37 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
   },
 
   // ----------------------------------------------------
-  // Capability F: Shape Independence Testing
+  // ----------------------------------------------------
+  // Capability F: Shape Independence Testing (Paired Empirical Trials)
   // ----------------------------------------------------
   {
     id: 'shape-indep-01',
     category: 'shape_independence',
     title: 'Shape Independence: Target Shape Variation',
     instructions:
-      'Compare an outgoing edge A → B where B is a Circle, versus A → B where B is changed to a Rectangle.',
+      'Listen to Journey 1 and Journey 2 using the playback controls. In Journey 1, the connection links to a circle. In Journey 2, the connection links to a rectangle.',
     prompt:
-      'When target Node B changes its visual shape from Circle to Rectangle, what happens to the directed relationship cue between A and B?',
+      'Comparing Journey 1 and Journey 2, which component of the sound sequence changed?',
     options: [
       {
-        id: 'unchanged_relationship',
+        id: 'target_shape_changed_only',
         label:
-          "The directed relationship cue remains completely unchanged; only B's intrinsic category sound changes"
+          "Only the second node's intrinsic sound changed; the directed relationship cue between them remained completely identical"
       },
       {
-        id: 'direction_inverted',
-        label: 'The directed relationship cue changes its direction and pitch'
+        id: 'relationship_cue_changed',
+        label: 'The directed relationship cue changed its pitch and direction'
       },
       {
-        id: 'warning_replaced',
-        label: 'The relationship is replaced by a warning tone'
+        id: 'both_sounds_identical',
+        label: 'Both complete journeys sounded entirely identical'
       }
     ],
-    expectedAnswerId: 'unchanged_relationship',
+    expectedAnswerId: 'target_shape_changed_only',
     soundStimulus: {
-      type: 'edge_journey',
-      shape1: 'circle',
-      shape2: 'rectangle',
-      direction: 'outgoing'
+      type: 'compare_edge_journeys',
+      journey1: { shape1: 'circle', shape2: 'circle', direction: 'outgoing' },
+      journey2: { shape1: 'circle', shape2: 'rectangle', direction: 'outgoing' }
     },
     visualStimulus: {
       nodes: [
@@ -563,7 +566,8 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
       ],
       edges: [
         { id: 'e1', source: 'A', target: 'B', direction: 'outgoing', geometryVariation: 'straight' }
-      ]
+      ],
+      blindInAssessment: true
     },
     supportsPerceivedMeaning: true
   },
@@ -572,29 +576,29 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
     category: 'shape_independence',
     title: 'Shape Independence: Target Diamond Variation',
     instructions:
-      'Now target Node B is a Diamond. Listen to the edge journey A (Circle) → B (Diamond).',
+      'Listen to Journey 1 (ending at a rectangle) and Journey 2 (ending at a diamond). Both share the same outgoing connection.',
     prompt:
-      'Does changing the target node shape alter the acoustic definition of an outgoing connection?',
+      'Does changing the target node shape alter the acoustic definition of the connection between them?',
     options: [
       {
         id: 'orthogonal_independent',
-        label: 'No, node shape and connection properties remain strictly orthogonal and independent'
+        label:
+          'No, the connection sound remained identical; node shape and connection properties are strictly orthogonal and independent'
       },
       {
         id: 'connection_inverted',
-        label: 'Yes, the connection becomes an incoming connection'
+        label: 'Yes, the connection cue was inverted'
       },
       {
         id: 'duration_doubled',
-        label: 'Yes, the connection duration doubles'
+        label: 'Yes, the connection cue duration changed'
       }
     ],
     expectedAnswerId: 'orthogonal_independent',
     soundStimulus: {
-      type: 'edge_journey',
-      shape1: 'circle',
-      shape2: 'diamond',
-      direction: 'outgoing'
+      type: 'compare_edge_journeys',
+      journey1: { shape1: 'circle', shape2: 'rectangle', direction: 'outgoing' },
+      journey2: { shape1: 'circle', shape2: 'diamond', direction: 'outgoing' }
     },
     visualStimulus: {
       nodes: [
@@ -603,43 +607,43 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
       ],
       edges: [
         { id: 'e1', source: 'A', target: 'B', direction: 'outgoing', geometryVariation: 'straight' }
-      ]
+      ],
+      blindInAssessment: true
     },
     supportsPerceivedMeaning: true
   },
 
   // ----------------------------------------------------
-  // Capability G: Geometry Invariance Testing
+  // Capability G: Geometry Invariance & Edge Style Testing (Paired Empirical Trials)
   // ----------------------------------------------------
   {
     id: 'geom-invar-01',
     category: 'geometry_invariance',
     title: 'Geometry Invariance: Straight vs Curved Arrow',
     instructions:
-      'A diagram designer changes a straight arrow A → B to a curved decorative spline to route around another object. Topological connectivity is unchanged.',
+      'Listen to Journey 1 (rendered visually as a straight arrow) and Journey 2 (rendered visually as a curved arrow). Both connect identical nodes with the same direction.',
     prompt:
-      'According to Governing Rule D, how should the relationship sound change when a decorative line bend is added without semantic change?',
+      'Comparing Journey 1 and Journey 2, does the decorative line bend produce an identical relationship sound or a different relationship sound?',
     options: [
       {
-        id: 'invariant_sound',
+        id: 'identical_sound',
         label:
-          'The sound must remain identical because decorative geometry does not alter topological semantics'
+          'Identical relationship sound (decorative line geometry does not alter topological audio meaning)'
       },
       {
-        id: 'curved_pitch_bend',
-        label: 'The sound should introduce a curved pitch bend matching the line angle'
+        id: 'different_pitch_bend',
+        label: 'Different sound: Journey 2 has a curved pitch bend'
       },
       {
-        id: 'volume_increase',
-        label: 'The sound should increase in volume'
+        id: 'different_volume',
+        label: 'Different sound: Journey 2 has higher volume or tempo'
       }
     ],
-    expectedAnswerId: 'invariant_sound',
+    expectedAnswerId: 'identical_sound',
     soundStimulus: {
-      type: 'edge_journey',
-      shape1: 'circle',
-      shape2: 'circle',
-      direction: 'outgoing'
+      type: 'compare_edge_journeys',
+      journey1: { shape1: 'circle', shape2: 'circle', direction: 'outgoing' },
+      journey2: { shape1: 'circle', shape2: 'circle', direction: 'outgoing' }
     },
     visualStimulus: {
       nodes: [
@@ -649,7 +653,8 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
       edges: [
         { id: 'e1', source: 'A', target: 'B', direction: 'outgoing', geometryVariation: 'curved' }
       ],
-      decorativeNote: 'Curved bezier path rendering'
+      decorativeNote: 'Curved bezier path rendering',
+      blindInAssessment: true
     },
     supportsPerceivedMeaning: true
   },
@@ -658,30 +663,29 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
     category: 'geometry_invariance',
     title: 'Geometry Invariance: Orthogonal Step Bend',
     instructions:
-      'The connection A → B is rendered with an orthogonal step bend (Manhattan routing).',
+      'Listen to Journey 1 (straight connection) and Journey 2 (rendered visually with a 90-degree Manhattan step bend). Both connect circle to rectangle.',
     prompt:
-      'Does the 90-degree step bend invent new auditory events or pitch changes?',
+      'Does the 90-degree step bend produce identical relationship audio or does it invent new auditory events?',
     options: [
       {
-        id: 'invariant_sound',
+        id: 'identical_sound',
         label:
-          'No, topological relationship cues remain invariant to drawing style and routing bends'
+          'Identical relationship sound (topological cues remain invariant to drawing style and routing bends)'
       },
       {
         id: 'corner_clicks',
-        label: 'Yes, two click sounds are added at each 90-degree corner'
+        label: 'Different sound: new clicks or corner cues are added'
       },
       {
         id: 'carrier_drop',
-        label: 'Yes, the step bend lowers the carrier frequency'
+        label: 'Different sound: the carrier frequency shifts'
       }
     ],
-    expectedAnswerId: 'invariant_sound',
+    expectedAnswerId: 'identical_sound',
     soundStimulus: {
-      type: 'edge_journey',
-      shape1: 'circle',
-      shape2: 'rectangle',
-      direction: 'outgoing'
+      type: 'compare_edge_journeys',
+      journey1: { shape1: 'circle', shape2: 'rectangle', direction: 'outgoing' },
+      journey2: { shape1: 'circle', shape2: 'rectangle', direction: 'outgoing' }
     },
     visualStimulus: {
       nodes: [
@@ -691,7 +695,50 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
       edges: [
         { id: 'e1', source: 'A', target: 'B', direction: 'outgoing', geometryVariation: 'step' }
       ],
-      decorativeNote: 'Orthogonal step bend routing'
+      decorativeNote: 'Orthogonal step bend routing',
+      blindInAssessment: true
+    },
+    supportsPerceivedMeaning: true
+  },
+  {
+    id: 'geom-invar-03',
+    category: 'geometry_invariance',
+    title: 'Meaningful Visual Style: Solid vs Dashed Edge',
+    instructions:
+      'Listen to Journey 1 (solid directed edge) and Journey 2 (dashed directed edge). Both connect circle to rectangle in the outgoing direction.',
+    prompt:
+      'Does the dashed line style produce an articulated auditory distinction to communicate the visual style difference?',
+    options: [
+      {
+        id: 'pulsed_style_distinction',
+        label:
+          'Yes, the dashed edge has an articulated pulsed sound indicating non-solid styling while preserving direction'
+      },
+      {
+        id: 'completely_identical',
+        label: 'No, both sound completely identical without style distinction'
+      },
+      {
+        id: 'frequency_inversion',
+        label: 'No, the direction interval is completely reversed'
+      }
+    ],
+    expectedAnswerId: 'pulsed_style_distinction',
+    soundStimulus: {
+      type: 'compare_edge_journeys',
+      journey1: { shape1: 'circle', shape2: 'rectangle', direction: 'outgoing', lineStyle: 'solid' },
+      journey2: { shape1: 'circle', shape2: 'rectangle', direction: 'outgoing', lineStyle: 'dashed' }
+    },
+    visualStimulus: {
+      nodes: [
+        { id: 'A', label: 'A', shape: 'circle', x: 60, y: 50 },
+        { id: 'B', label: 'B', shape: 'rectangle', x: 220, y: 110 }
+      ],
+      edges: [
+        { id: 'e1', source: 'A', target: 'B', direction: 'outgoing', geometryVariation: 'straight' }
+      ],
+      decorativeNote: 'Dashed line style distinction',
+      blindInAssessment: true
     },
     supportsPerceivedMeaning: true
   },

@@ -76,35 +76,94 @@ export class ParitySonificationStrategy implements ISonificationStrategy {
           };
         }
 
-        // 2. Directional connection cue
+        // 2. Directional connection cue (reflects lineStyle if edge is dashed)
+        const selectedNeighborId =
+          event.selectedNeighborIndex !== undefined ? event.neighborIds[event.selectedNeighborIndex] : undefined;
+        let lineStyle: 'solid' | 'dashed' | 'dotted' = 'solid';
+        if (graph && selectedNeighborId) {
+          const edge =
+            event.direction === 'outgoing'
+              ? graph.getEdges().find((e) => e.source === event.nodeId && e.target === selectedNeighborId)
+              : graph.getEdges().find((e) => e.source === selectedNeighborId && e.target === event.nodeId);
+          if (edge?.presentation?.lineStyle === 'dashed' || edge?.presentation?.lineStyle === 'dotted') {
+            lineStyle = edge.presentation.lineStyle;
+          }
+        }
+
         const [f1, f2] =
           event.direction === 'outgoing'
             ? [360, 440]
             : [440, 360];
 
         let offset = rootTone.durationSec + 0.06;
-        notes.push(
-          {
-            timeOffsetSec: offset,
-            tone: {
-              frequency: f1,
-              durationSec: 0.05,
-              waveform: 'sine',
-              gain: 0.20,
-              pan: isSpatial ? (event.direction === 'outgoing' ? 0.3 : -0.3) : 0.0
+
+        if (lineStyle === 'dashed' || lineStyle === 'dotted') {
+          notes.push(
+            {
+              timeOffsetSec: offset,
+              tone: {
+                frequency: f1,
+                durationSec: 0.025,
+                waveform: 'sine',
+                gain: 0.20,
+                pan: isSpatial ? (event.direction === 'outgoing' ? 0.3 : -0.3) : 0.0
+              }
+            },
+            {
+              timeOffsetSec: offset + 0.035,
+              tone: {
+                frequency: f1,
+                durationSec: 0.025,
+                waveform: 'sine',
+                gain: 0.20,
+                pan: isSpatial ? (event.direction === 'outgoing' ? 0.3 : -0.3) : 0.0
+              }
+            },
+            {
+              timeOffsetSec: offset + 0.08,
+              tone: {
+                frequency: f2,
+                durationSec: 0.035,
+                waveform: 'sine',
+                gain: 0.22,
+                pan: isSpatial ? (event.direction === 'outgoing' ? 0.4 : -0.4) : 0.0
+              }
+            },
+            {
+              timeOffsetSec: offset + 0.125,
+              tone: {
+                frequency: f2,
+                durationSec: 0.035,
+                waveform: 'sine',
+                gain: 0.22,
+                pan: isSpatial ? (event.direction === 'outgoing' ? 0.4 : -0.4) : 0.0
+              }
             }
-          },
-          {
-            timeOffsetSec: offset + 0.07,
-            tone: {
-              frequency: f2,
-              durationSec: 0.07,
-              waveform: 'sine',
-              gain: 0.22,
-              pan: isSpatial ? (event.direction === 'outgoing' ? 0.4 : -0.4) : 0.0
+          );
+        } else {
+          notes.push(
+            {
+              timeOffsetSec: offset,
+              tone: {
+                frequency: f1,
+                durationSec: 0.05,
+                waveform: 'sine',
+                gain: 0.20,
+                pan: isSpatial ? (event.direction === 'outgoing' ? 0.3 : -0.3) : 0.0
+              }
+            },
+            {
+              timeOffsetSec: offset + 0.07,
+              tone: {
+                frequency: f2,
+                durationSec: 0.07,
+                waveform: 'sine',
+                gain: 0.22,
+                pan: isSpatial ? (event.direction === 'outgoing' ? 0.4 : -0.4) : 0.0
+              }
             }
-          }
-        );
+          );
+        }
 
         offset += 0.16;
 
@@ -219,6 +278,9 @@ export class ParitySonificationStrategy implements ISonificationStrategy {
 
   private resolveShapeForNode(nodeId: string, graph?: DirectedGraph): NodeShape {
     if (!graph || !graph.hasNode(nodeId)) {
+      const lower = nodeId.toLowerCase();
+      if (lower.includes('diamond')) return 'diamond';
+      if (lower.includes('rect')) return 'rectangle';
       return 'circle';
     }
     const node = graph.getNode(nodeId);

@@ -46,10 +46,11 @@
     summary = labManager.getSessionSummary();
     currentMode = labManager.getMode();
 
-    // Fix 3: ONLY update or reset form draft state when the test case actually changes
-    if (currentTest && currentTest.id !== lastLoadedTestId) {
-      lastLoadedTestId = currentTest.id;
-      const existing = labManager.getRecordForTestCase(currentTest.id);
+    // Fix: Strictly isolate form draft state by both current test case AND active mode
+    const stateKey = `${currentMode}:${currentTest?.id ?? ''}`;
+    if (stateKey !== lastLoadedTestId) {
+      lastLoadedTestId = stateKey;
+      const existing = currentTest ? labManager.getRecordForTestCase(currentTest.id, currentMode) : undefined;
       if (existing) {
         selectedOptionId = existing.participantResponseId;
         selectedPerceivedMeaning = existing.perceivedMeaning || '';
@@ -83,6 +84,8 @@
     audioEngine.cancelPlayback();
     labManager.setMode(mode);
     currentMode = mode;
+    lastLoadedTestId = null; // Force complete state re-sync for the new mode
+    syncState();
     announce(`Switched to ${mode === 'training' ? 'Training Practice' : 'Blinded Assessment'} mode.`);
   }
 
@@ -423,13 +426,13 @@
 
       <p class="test-instructions">{currentTest.instructions}</p>
 
-      <!-- Visual Renderer Stimulus (Blinded during assessment until answered) -->
+      <!-- Visual Renderer Stimulus (Strictly blinded during assessment) -->
       {#if currentTest.visualStimulus}
         <VisualShapeRenderer
           nodes={currentTest.visualStimulus.nodes}
           edges={currentTest.visualStimulus.edges}
           decorativeNote={currentTest.visualStimulus.decorativeNote}
-          blinded={currentMode === 'assessment' && !isSubmitted && Boolean(currentTest.visualStimulus.blindInAssessment)}
+          blinded={currentMode === 'assessment' && Boolean(currentTest.visualStimulus.blindInAssessment)}
         />
       {/if}
 
@@ -475,6 +478,29 @@
             {:else}
               Play Sound 2 ({currentTest.soundStimulus.shape2})
             {/if}
+          </button>
+        {:else if currentTest.soundStimulus.type === 'compare_edge_journeys'}
+          <button
+            class="secondary"
+            onclick={() => {
+              if (currentTest?.soundStimulus.journey1) {
+                const j1 = currentTest.soundStimulus.journey1;
+                audioEngine.playFullDirectedRelationship(j1.shape1, j1.shape2, j1.direction, j1.lineStyle ?? 'solid');
+              }
+            }}
+          >
+            Play Journey 1
+          </button>
+          <button
+            class="secondary"
+            onclick={() => {
+              if (currentTest?.soundStimulus.journey2) {
+                const j2 = currentTest.soundStimulus.journey2;
+                audioEngine.playFullDirectedRelationship(j2.shape1, j2.shape2, j2.direction, j2.lineStyle ?? 'solid');
+              }
+            }}
+          >
+            Play Journey 2
           </button>
         {/if}
 
@@ -547,7 +573,7 @@
 
         <div class="form-actions">
           <button type="submit" class="primary submit-btn">
-            Submit Answer & Record
+            {isSubmitted ? 'Update Recorded Response' : 'Submit Answer & Record'}
           </button>
         </div>
 

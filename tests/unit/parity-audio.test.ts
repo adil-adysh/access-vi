@@ -333,4 +333,21 @@ describe('Visual-Auditory Parity Sonification & Governing Rules (Section 8 Verif
     reg.resetToDefaultGains();
     expect(reg.getShapeGain('diamond')).toBe(0.14);
   });
+
+  it('Finding 8: supports meaningful lineStyle distinctions (dashed edges) with pulsed directional audio', () => {
+    const reg = new ParitySoundRegistry();
+    const solidSeq = reg.createRelationshipDirectionSequence('outgoing', 'rel', 'solid');
+    const dashedSeq = reg.createRelationshipDirectionSequence('outgoing', 'rel', 'dashed');
+
+    // Both preserve total duration and 360 -> 440 Hz interval
+    expect(solidSeq.totalDurationSec).toBe(dashedSeq.totalDurationSec);
+
+    // Solid has 2 sustained tones
+    expect(solidSeq.notes.length).toBe(2);
+    expect(solidSeq.notes.map((n) => n.tone.frequency)).toEqual([360, 440]);
+
+    // Dashed has 4 pulsed/interrupted tones articulating the visual dashes
+    expect(dashedSeq.notes.length).toBe(4);
+    expect(dashedSeq.notes.map((n) => n.tone.frequency)).toEqual([360, 360, 440, 440]);
+  });
 });

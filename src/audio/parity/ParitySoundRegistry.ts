@@ -181,15 +181,66 @@ export class ParitySoundRegistry {
    * Outgoing = forward interval (360 -> 440 Hz)
    * Incoming = reverse interval (440 -> 360 Hz)
    * Invariant of endpoint shapes, labels, and geometry.
+   * When lineStyle is 'dashed' or 'dotted', articulates an interrupted/pulsed staccato envelope to represent the visual dash.
    */
   public createRelationshipDirectionSequence(
     direction: 'outgoing' | 'incoming',
-    idPrefix: string = 'rel'
+    idPrefix: string = 'rel',
+    lineStyle: 'solid' | 'dashed' | 'dotted' = 'solid'
   ): AudioSequence {
     const [f1, f2] =
       direction === 'outgoing'
         ? this.config.outgoingFrequenciesHz
         : this.config.incomingFrequenciesHz;
+
+    if (lineStyle === 'dashed' || lineStyle === 'dotted') {
+      return {
+        id: `${idPrefix}-${direction}-${lineStyle}-${Date.now()}`,
+        notes: [
+          {
+            timeOffsetSec: 0.0,
+            tone: {
+              frequency: f1,
+              durationSec: 0.025,
+              waveform: 'sine',
+              gain: 0.22,
+              pan: 0.0
+            }
+          },
+          {
+            timeOffsetSec: 0.035,
+            tone: {
+              frequency: f1,
+              durationSec: 0.025,
+              waveform: 'sine',
+              gain: 0.22,
+              pan: 0.0
+            }
+          },
+          {
+            timeOffsetSec: 0.08,
+            tone: {
+              frequency: f2,
+              durationSec: 0.035,
+              waveform: 'sine',
+              gain: 0.24,
+              pan: 0.0
+            }
+          },
+          {
+            timeOffsetSec: 0.125,
+            tone: {
+              frequency: f2,
+              durationSec: 0.035,
+              waveform: 'sine',
+              gain: 0.24,
+              pan: 0.0
+            }
+          }
+        ],
+        totalDurationSec: 0.22
+      };
+    }
 
     return {
       id: `${idPrefix}-${direction}-${Date.now()}`,
