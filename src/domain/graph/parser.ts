@@ -397,14 +397,21 @@ export class GraphParser {
           }
 
           const existing = nodesMap.get(firstNode);
-          const rawShape = nodeAttrs.shape || (existing?.presentation?.shape as string | undefined);
+          const rawShape =
+            nodeAttrs.shape ||
+            (existing?.presentation?.originalDeclaredShape as string | undefined) ||
+            (existing?.presentation?.shape as string | undefined);
           const normalized = rawShape ? normalizeShape(rawShape) : undefined;
           const nodePresentation: NodePresentation | undefined = normalized
             ? {
                 shape: normalized.shape,
-                fillColor: nodeAttrs.fillcolor || nodeAttrs.color,
-                strokeColor: nodeAttrs.bordercolor || nodeAttrs.color,
-                ariaDescription: nodeAttrs.description
+                originalDeclaredShape: normalized.originalDeclaredShape,
+                isFallback: normalized.isFallback,
+                fallbackReason: normalized.fallbackReason,
+                fillColor: nodeAttrs.fillcolor || nodeAttrs.color || existing?.presentation?.fillColor,
+                strokeColor: nodeAttrs.bordercolor || nodeAttrs.color || existing?.presentation?.strokeColor,
+                strokeStyle: (nodeAttrs.style as any) || existing?.presentation?.strokeStyle,
+                ariaDescription: nodeAttrs.description || existing?.presentation?.ariaDescription
               }
             : existing?.presentation;
 
@@ -458,8 +465,18 @@ export class GraphParser {
       if (node.category) {
         attrs.push(`category="${node.category.replace(/"/g, '\\"')}"`);
       }
-      if (node.presentation?.shape) {
-        attrs.push(`shape="${node.presentation.shape.replace(/"/g, '\\"')}"`);
+      const exportedShape = (node.presentation?.isFallback && node.presentation?.originalDeclaredShape) ? node.presentation.originalDeclaredShape : (node.presentation?.shape || node.presentation?.originalDeclaredShape);
+      if (exportedShape) {
+        attrs.push(`shape="${exportedShape.replace(/"/g, '\\"')}"`);
+      }
+      if (node.presentation?.fillColor) {
+        attrs.push(`fillcolor="${node.presentation.fillColor.replace(/"/g, '\\"')}"`);
+      }
+      if (node.presentation?.strokeColor) {
+        attrs.push(`color="${node.presentation.strokeColor.replace(/"/g, '\\"')}"`);
+      }
+      if (node.presentation?.strokeStyle) {
+        attrs.push(`style="${node.presentation.strokeStyle.replace(/"/g, '\\"')}"`);
       }
       const attrStr = attrs.length > 0 ? ` [${attrs.join(', ')}]` : '';
       lines.push(`  "${node.id}"${attrStr};`);
@@ -472,6 +489,15 @@ export class GraphParser {
       }
       if (edge.category) {
         attrs.push(`category="${edge.category.replace(/"/g, '\\"')}"`);
+      }
+      if (edge.presentation?.geometryVariation) {
+        attrs.push(`geometryVariation="${edge.presentation.geometryVariation}"`);
+      }
+      if (edge.presentation?.lineStyle) {
+        attrs.push(`style="${edge.presentation.lineStyle}"`);
+      }
+      if (edge.presentation?.strokeColor) {
+        attrs.push(`color="${edge.presentation.strokeColor}"`);
       }
       const attrStr = attrs.length > 0 ? ` [${attrs.join(', ')}]` : '';
       lines.push(`  "${edge.source}" -> "${edge.target}"${attrStr};`);

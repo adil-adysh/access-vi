@@ -13,6 +13,9 @@ export const DEFAULT_NODE_SHAPE: NodeShape = 'circle';
 
 export interface NodePresentation {
   readonly shape?: NodeShape | string;
+  readonly originalDeclaredShape?: string;
+  readonly isFallback?: boolean;
+  readonly fallbackReason?: string;
   readonly fillColor?: string;
   readonly strokeColor?: string;
   readonly strokeStyle?: 'solid' | 'dashed' | 'dotted';
@@ -33,8 +36,10 @@ export interface EdgePresentation {
 
 export interface ResolvedNodePresentation {
   readonly shape: NodeShape;
+  readonly originalDeclaredShape?: string;
   readonly isFallback: boolean;
-  readonly rawShape?: string;
+  readonly fallbackReason?: string;
+  readonly rawShape?: string; // backwards compatibility alias
   readonly fillColor: string;
   readonly strokeColor: string;
   readonly strokeStyle: 'solid' | 'dashed' | 'dotted';
@@ -59,21 +64,24 @@ export interface ResolvedEdgePresentation {
 export function normalizeShape(input?: string | null): {
   shape: NodeShape;
   isFallback: boolean;
+  originalDeclaredShape?: string;
+  fallbackReason?: string;
   rawShape?: string;
 } {
   if (!input || typeof input !== 'string') {
     return { shape: DEFAULT_NODE_SHAPE, isFallback: false };
   }
 
-  const cleaned = input.trim().toLowerCase();
+  const raw = input.trim();
+  const cleaned = raw.toLowerCase();
   if (cleaned === 'circle') {
-    return { shape: 'circle', isFallback: false };
+    return { shape: 'circle', isFallback: false, originalDeclaredShape: raw, rawShape: raw };
   }
   if (cleaned === 'rectangle' || cleaned === 'rect' || cleaned === 'box' || cleaned === 'square') {
-    return { shape: 'rectangle', isFallback: false };
+    return { shape: 'rectangle', isFallback: false, originalDeclaredShape: raw, rawShape: raw };
   }
   if (cleaned === 'diamond' || cleaned === 'rhombus') {
-    return { shape: 'diamond', isFallback: false };
+    return { shape: 'diamond', isFallback: false, originalDeclaredShape: raw, rawShape: raw };
   }
 
   // Documented fallback for unknown / unsupported shapes:
@@ -81,7 +89,9 @@ export function normalizeShape(input?: string | null): {
   return {
     shape: DEFAULT_NODE_SHAPE,
     isFallback: true,
-    rawShape: input
+    originalDeclaredShape: raw,
+    rawShape: raw,
+    fallbackReason: `Unsupported shape "${raw}" mapped to default circle sound and visual`
   };
 }
 
@@ -98,23 +108,36 @@ export function resolveNodePresentation(node: {
   readonly metadata?: Record<string, unknown>;
 }): ResolvedNodePresentation {
   const explicitShape =
+    node.presentation?.originalDeclaredShape ??
     node.presentation?.shape ??
-    (typeof node.metadata?.shape === 'string' ? node.metadata.shape : undefined);
+    (typeof node.metadata?.originalDeclaredShape === 'string'
+      ? node.metadata.originalDeclaredShape
+      : typeof node.metadata?.shape === 'string'
+        ? node.metadata.shape
+        : undefined);
 
-  const { shape, isFallback, rawShape } = normalizeShape(explicitShape);
+  const norm = normalizeShape(explicitShape);
+  const shape = norm.shape;
+  const isFallback = node.presentation?.isFallback ?? norm.isFallback;
+  const originalDeclaredShape = node.presentation?.originalDeclaredShape ?? norm.originalDeclaredShape;
+  const fallbackReason = node.presentation?.fallbackReason ?? norm.fallbackReason;
 
   const shapeName = shape.charAt(0).toUpperCase() + shape.slice(1);
   const shapeDesc = isFallback
-    ? `Fallback Circle (unsupported shape "${rawShape}")`
+    ? `Fallback Circle (unsupported shape "${originalDeclaredShape || 'unknown'}")`
     : `${shapeName} shape`;
 
   const nodeName = node.label || node.id || 'Unnamed node';
-  const ariaLabel = `${shapeDesc}, Node ${nodeName}`;
+  const ariaLabel = isFallback
+    ? `${nodeName}, ${originalDeclaredShape || 'unknown'} shape (unsupported, mapped to circle sound and visual)`
+    : `${shapeDesc}, Node ${nodeName}`;
 
   return {
     shape,
+    originalDeclaredShape,
     isFallback,
-    rawShape,
+    fallbackReason,
+    rawShape: originalDeclaredShape,
     fillColor: node.presentation?.fillColor ?? '#1e293b',
     strokeColor: node.presentation?.strokeColor ?? '#38bdf8',
     strokeStyle: node.presentation?.strokeStyle ?? 'solid',
@@ -152,7 +175,8 @@ export function resolveEdgePresentation(edge: {
   const strokeWidth = edge.presentation?.strokeWidth ?? 2;
   const arrowStyle = edge.presentation?.arrowStyle ?? 'standard';
 
-  const desc = edge.presentation?.ariaDescription ??
+  const desc =
+    edge.presentation?.ariaDescription ??
     (edge.source && edge.target ? `Directed edge from ${edge.source} to ${edge.target}` : 'Directed edge');
 
   return {

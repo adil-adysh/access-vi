@@ -171,4 +171,87 @@ describe('Shared Presentation Model (Phase 1)', () => {
     expect(edgeCurved.ariaLabel).toContain('from A to B');
     expect(edgeStep.ariaLabel).toContain('from A to B');
   });
+
+  it('correctly announces unsupported shapes with warning and preserved original shape (Fix 7)', () => {
+    const nodePresentation = resolveNodePresentation({
+      id: 'N_status',
+      label: 'Status Node',
+      presentation: { shape: 'hexagon' }
+    });
+
+    expect(nodePresentation.shape).toBe('circle');
+    expect(nodePresentation.isFallback).toBe(true);
+    expect(nodePresentation.originalDeclaredShape).toBe('hexagon');
+    expect(nodePresentation.fallbackReason).toContain('Unsupported shape "hexagon"');
+    expect(nodePresentation.ariaLabel).toBe(
+      'Status Node, hexagon shape (unsupported, mapped to circle sound and visual)'
+    );
+  });
+
+  it('preserves presentation styling (colors, stroke, geometry) during DOT roundtrip (Fix 8)', () => {
+    const dot = `
+      digraph Stylized {
+        A [shape=box, fillcolor="#112233", color="#445566", style="dashed", label="Node A"];
+        B [shape=diamond, fillcolor="#778899", color="#aabbcc", label="Node B"];
+        C [shape=hexagon, label="Node C"];
+        A -> B [geometryVariation=curved, style="dotted", color="#123456"];
+        B -> C [geometryVariation=step];
+      }
+    `;
+
+    const parsed1 = GraphParser.parseDOT(dot);
+    const exported1 = GraphParser.exportDOT(parsed1);
+    const parsed2 = GraphParser.parseDOT(exported1);
+
+    const a2 = parsed2.getNode('A')!;
+    expect(a2.presentation?.shape).toBe('rectangle');
+    expect(a2.presentation?.fillColor).toBe('#112233');
+    expect(a2.presentation?.strokeColor).toBe('#445566');
+    expect(a2.presentation?.strokeStyle).toBe('dashed');
+
+    const c2 = parsed2.getNode('C')!;
+    expect(c2.presentation?.shape).toBe('circle');
+    expect(c2.presentation?.isFallback).toBe(true);
+    expect(c2.presentation?.originalDeclaredShape).toBe('hexagon');
+
+    const edgeAB = parsed2.getEdges().find((e) => e.source === 'A' && e.target === 'B')!;
+    expect(edgeAB.presentation?.geometryVariation).toBe('curved');
+    expect(edgeAB.presentation?.lineStyle).toBe('dotted');
+    expect(edgeAB.presentation?.strokeColor).toBe('#123456');
+  });
+
+  it('computes weakly connected components for discovering disconnected graph structures', () => {
+    const graph = new DirectedGraph({ id: 'comp-test', name: 'Components Test' });
+    // Component 1: A -> B
+    graph.addNode({ id: 'A' });
+    graph.addNode({ id: 'B' });
+    graph.addEdge({ id: 'e1', source: 'A', target: 'B' });
+
+    // Component 2: C -> D -> E
+    graph.addNode({ id: 'C' });
+    graph.addNode({ id: 'D' });
+    graph.addNode({ id: 'E' });
+    graph.addEdge({ id: 'e2', source: 'C', target: 'D' });
+    graph.addEdge({ id: 'e3', source: 'D', target: 'E' });
+
+    // Component 3: Isolated node F
+    graph.addNode({ id: 'F' });
+
+    const components = graph.getWeaklyConnectedComponents();
+    expect(components.length).toBe(3);
+
+    const comp1 = components.find((c) => c.includes('A'))!;
+    expect(comp1).toContain('A');
+    expect(comp1).toContain('B');
+    expect(comp1.length).toBe(2);
+
+    const comp2 = components.find((c) => c.includes('C'))!;
+    expect(comp2).toContain('C');
+    expect(comp2).toContain('D');
+    expect(comp2).toContain('E');
+    expect(comp2.length).toBe(3);
+
+    const comp3 = components.find((c) => c.includes('F'))!;
+    expect(comp3).toEqual(['F']);
+  });
 });

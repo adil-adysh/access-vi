@@ -439,6 +439,52 @@ export class DirectedGraph {
     return graph;
   }
 
+  /**
+   * Computes weakly connected components of the directed graph.
+   * Treats all directed edges as bidirectional for component discovery.
+   * Returns an array of node ID arrays, one for each connected component.
+   */
+  public getWeaklyConnectedComponents(): string[][] {
+    const allNodeIds = this.getNodeIds();
+    const visited = new Set<string>();
+    const components: string[][] = [];
+
+    // Build undirected adjacency list
+    const adj = new Map<string, Set<string>>();
+    for (const id of allNodeIds) {
+      adj.set(id, new Set<string>());
+    }
+    for (const edge of this.getEdges()) {
+      adj.get(edge.source)?.add(edge.target);
+      adj.get(edge.target)?.add(edge.source);
+    }
+
+    for (const nodeId of allNodeIds) {
+      if (!visited.has(nodeId)) {
+        const component: string[] = [];
+        const queue: string[] = [nodeId];
+        visited.add(nodeId);
+
+        while (queue.length > 0) {
+          const curr = queue.shift()!;
+          component.push(curr);
+          const neighbors = adj.get(curr);
+          if (neighbors) {
+            for (const neighbor of neighbors) {
+              if (!visited.has(neighbor)) {
+                visited.add(neighbor);
+                queue.push(neighbor);
+              }
+            }
+          }
+        }
+        components.push(component);
+      }
+    }
+
+    return components;
+  }
+
   public computeHash(): string {
     const nodeIds = [...this.getNodeIds()].sort();
     const edges = this.getEdges()
