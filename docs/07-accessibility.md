@@ -18,13 +18,19 @@ Target platform: **Windows 11 + Microsoft Edge + NVDA (latest stable)**. Automat
   - Focus is deterministically restored to the triggering button upon dismissal.
 - **Predictable Tab Navigation**: Normal Tab and Shift+Tab key flows proceed sequentially through interactive controls without keyboard traps.
 
-## Speech, Live Regions & Screen Reader Semantics
+## Speech, Live Regions & Accessible Alerts
 
-- **No Nested Interactive Options**: In earlier designs, buttons were nested inside `role="option"`, violating ARIA 1.2 rules. Connections are now rendered using semantic `<ul>` and `<li><button class="neighbor-select-btn">` controls with `aria-current="true"` on the selected neighbor.
+- **No Nested Interactive Options**: Connections are rendered using semantic `<ul>` and `<li><button class="neighbor-select-btn">` controls with `aria-current="true"` on the selected neighbor.
 - **WCAG 2.5.3 (Label in Name)**: Every accessible name (`aria-label`) begins with or contains the visible text on the button to support voice control and screen-reader fidelity.
 - **Polite vs. Assertive Announcements**:
   - Traversal, neighbor selection, and state updates are sent to polite live regions (`aria-live="polite"`).
   - Navigation errors, boundary notices, and task transitions use assertive live regions (`aria-live="assertive"`).
+- **Session Recovery Banner**:
+  - When an interrupted session is detected on load, an accessible recovery banner (`role="region"`, `aria-label="Incomplete Session Detected"`) notifies the user and provides keyboard buttons to "Resume Interrupted Session" or "Discard Session".
+- **Storage Persistence Alert**:
+  - If IndexedDB storage fails or falls back to ephemeral memory, an assertive alert (`role="alert"`, `class="storage-warning-banner"`) warns the participant/researcher: "Session data is being saved in temporary memory only and may be lost if this browser window is refreshed or closed."
+- **Settings Locked Notice**:
+  - During active or interrupted trials, navigating to Settings displays an alert (`role="alert"`, `class="trial-locked-banner"`): "Settings are locked during an active experimental trial to preserve experimental control." Controls are disabled to prevent mid-trial configuration tampering.
 - **Forms Mode**: When entering response entry forms or workload sliders, NVDA remains in forms mode without shortcut interference.
 
 ## Color Contrast & Visual Accessibility
@@ -83,7 +89,7 @@ Target platform: **Windows 11 + Microsoft Edge + NVDA (latest stable)**. Automat
 - [ ] Press `Escape`. Verify modal closes and focus is restored directly to the "Import" button.
 - [ ] Open the "Help (?)" modal via button or `?`. Verify dialog opens, Tab is trapped, and `Escape` closes it, returning focus to the Help button.
 
-### 5. Research Experiment Workflow & Answer Protection
+### 5. Research Experiment Workflow & Interruption Handling
 - [ ] Navigate to the "Research Experiment" tab.
 - [ ] Review Participant Consent. Press `Enter` on "I Understand & Acknowledge Consent".
 - [ ] Audio Calibration: Press "Test Left Tone" and "Test Right Tone". Verify stereo separation.
@@ -96,6 +102,13 @@ Target platform: **Windows 11 + Microsoft Edge + NVDA (latest stable)**. Automat
   - [ ] Verify cycle status and count badges are NOT displayed.
   - [ ] Verify graph title is anonymized (e.g. "Study Graph").
   - [ ] Navigate nodes using arrow keys.
+- [ ] **Tab Switching & Interruption Test**:
+  - [ ] While in active trial exploration, press `Tab` up to "Settings" and activate it.
+  - [ ] In Settings, verify the alert: "Settings are locked during an active experimental trial" is announced and controls are disabled.
+  - [ ] Switch back to "Research Experiment".
+  - [ ] Verify NVDA announces "Trial Interrupted" region.
+  - [ ] Verify options: "Restart Trial (Recommended)", "Resume Trial", and "Abandon Trial".
+  - [ ] Press "Resume Trial". Verify focus returns to the exploration workspace and exploration resumes.
 - [ ] Click "Finish Exploration & Enter Response".
   - [ ] Verify exploration region is replaced by response form.
   - [ ] Verify graph cannot be traversed or re-inspected during response entry.
@@ -109,9 +122,15 @@ Target platform: **Windows 11 + Microsoft Edge + NVDA (latest stable)**. Automat
   - [ ] Adjust sliders and submit.
   - [ ] Verify transition to "Rest Period".
 
-### 6. Results, Export & Storage Verification
+### 6. Results, Export & Session Recovery Verification
 - [ ] Navigate to "Results & Export" tab.
-- [ ] Verify trial summary table announces completed trials, durations, and accuracy.
-- [ ] Click "Export JSON" and "Export CSV". Verify downloads complete without error.
-- [ ] Refresh the browser (`F5`). Verify active session state is restored from IndexedDB.
+- [ ] Verify trial summary table announces completed trials, durations, accuracy, and status tags.
+- [ ] Verify interrupted or abandoned trials (if any) are reported under separate interrupted trial statistics and excluded from primary accuracy %.
+- [ ] Click "Export JSON" and "Export CSV". Verify downloads complete without error and CSV contains actual audio settings snapshot columns (`waveform`, `playbackSpeed`, `masterVolume`).
+- [ ] **Mid-Trial Session Recovery Test**:
+  - [ ] Start a new trial in the experiment view.
+  - [ ] Refresh the browser (`F5`).
+  - [ ] On reload, verify NVDA announces the "Incomplete Session Detected" recovery banner.
+  - [ ] Activate "Resume Interrupted Session".
+  - [ ] Verify trial is placed into `trial_interrupted` (not silently resumed with a broken timer), allowing deliberate restart or resume.
 - [ ] Click "Clear Data". Verify confirmation prompt and clean reset.
