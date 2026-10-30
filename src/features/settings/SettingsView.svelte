@@ -12,12 +12,15 @@
 
   let { audioCoordinator, controller }: Props = $props();
 
-  let config = $state.raw(audioCoordinator.getConfig());
+  let config = $state(audioCoordinator.getConfig());
   let currentCondition = $state<ExperimentalConditionId>(controller.getState().condition);
 
   $effect(() => {
-    config = audioCoordinator.getConfig();
     currentCondition = controller.getState().condition;
+    const unsub = controller.onStateChange((state) => {
+      currentCondition = state.condition;
+    });
+    return unsub;
   });
 
   function handleVolumeChange(e: Event) {

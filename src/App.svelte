@@ -4,6 +4,7 @@
   import { ExperimentRunner } from './research/recording/ExperimentRunner.js';
   import { IndexedDBStorage } from './storage/IndexedDBStorage.js';
   import { getSampleGraphs } from './research/datasets/sampleGraphs.js';
+  import { DEFAULT_FREE_POLICY } from './domain/navigation/types.js';
   import type { DirectedGraph } from './domain/graph/Graph.js';
   import type { NavigationState } from './domain/navigation/types.js';
 
@@ -21,45 +22,98 @@
 
   const storage = new IndexedDBStorage();
   const audioCoordinator = new AudioCoordinator();
-  const controller = new ExplorationController(initialGraph, 'condition_b_non_spatial');
-  const runner = new ExperimentRunner({}, storage, controller);
 
-  let activeTab: 'explorer' | 'experiment' | 'results' | 'settings' = $state('explorer');
+  // Distinct isolated controllers for free exploration and experimental trials
+  const freeController = new ExplorationController(
+    initialGraph,
+    'condition_b_non_spatial',
+    'free_exploration',
+    DEFAULT_FREE_POLICY
+  );
+  const runner = new ExperimentRunner({}, storage);
+  const experimentController = runner.getController();
+
+  let activeTab = $state<'explorer' | 'experiment' | 'results' | 'settings'>('explorer');
   let isHelpOpen = $state(false);
   let isImportOpen = $state(false);
 
   let politeAnnouncement = $state('');
   let assertiveAnnouncement = $state('');
-  let navState: NavigationState = $state(controller.getState());
+  let freeNavState: NavigationState = $state(freeController.getState());
+  let session = $state(runner.getSession());
 
-  // Connect Controller with Audio Coordinator and Screen Reader Announcer
+  // Connect Free Controller with Audio Coordinator and Screen Reader Announcer
   $effect(() => {
-    const unsubState = controller.onStateChange((state) => {
-      navState = state;
+    const unsubFreeState = freeController.onStateChange((state) => {
+      freeNavState = state;
     });
 
-    const unsubAudio = controller.onPlaybackRequest((state, action) => {
-      audioCoordinator.handleNavigationAction(state, action);
-    });
-
-    const unsubAnnounce = controller.onAnnouncement((msg, priority) => {
-      if (priority === 'assertive') {
-        assertiveAnnouncement = msg;
-      } else {
-        politeAnnouncement = msg;
+    const unsubFreeAudio = freeController.onPlaybackRequest((state, action) => {
+      if (activeTab === 'explorer' || activeTab === 'settings') {
+        audioCoordinator.handleNavigationAction(state, action);
       }
     });
 
+    const unsubFreeAnnounce = freeController.onAnnouncement((msg, priority) => {
+      if (activeTab === 'explorer' || activeTab === 'settings') {
+        if (priority === 'assertive') {
+          assertiveAnnouncement = msg;
+        } else {
+          politeAnnouncement = msg;
+        }
+      }
+    });
+
+    // Connect Experiment Controller
+    const unsubExpAudio = experimentController.onPlaybackRequest((state, action) => {
+      if (activeTab === 'experiment') {
+        audioCoordinator.handleNavigationAction(state, action);
+      }
+    });
+
+    const unsubExpAnnounce = experimentController.onAnnouncement((msg, priority) => {
+      if (activeTab === 'experiment') {
+        if (priority === 'assertive') {
+          assertiveAnnouncement = msg;
+        } else {
+          politeAnnouncement = msg;
+        }
+      }
+    });
+
+    // Keep session reactive
+    const unsubRunner = runner.subscribe((updatedSession) => {
+      session = updatedSession;
+    });
+
     return () => {
-      unsubState();
-      unsubAudio();
-      unsubAnnounce();
+      unsubFreeState();
+      unsubFreeAudio();
+      unsubFreeAnnounce();
+      unsubExpAudio();
+      unsubExpAnnounce();
+      unsubRunner();
     };
   });
 
+  function handleTabChange(tab: 'explorer' | 'experiment' | 'results' | 'settings') {
+    if (tab !== activeTab) {
+      audioCoordinator.cancelPlayback();
+      freeController.cancelPlayback();
+      experimentController.cancelPlayback();
+
+      if (activeTab === 'experiment' && tab !== 'experiment') {
+        runner.recordInterruption('Participant switched away from experiment tab');
+      }
+
+      activeTab = tab;
+    }
+  }
+
   function handleGraphLoaded(graph: DirectedGraph) {
-    controller.setGraph(graph);
-    activeTab = 'explorer';
+    // Only imports into free exploration controller; never affects experiment
+    freeController.setGraph(graph);
+    handleTabChange('explorer');
   }
 
   async function handleClearData() {
@@ -68,6 +122,10 @@
       alert('Local session data cleared.');
     }
   }
+
+  const currentDisplayedCondition = $derived(
+    activeTab === 'experiment' ? runner.getCurrentCondition() : freeNavState.condition
+  );
 </script>
 
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -79,8 +137,8 @@
 
 <Header
   {activeTab}
-  condition={navState.condition}
-  onTabChange={(tab: 'explorer' | 'experiment' | 'results' | 'settings') => (activeTab = tab)}
+  condition={currentDisplayedCondition}
+  onTabChange={handleTabChange}
   onOpenHelp={() => (isHelpOpen = true)}
   onOpenImport={() => (isImportOpen = true)}
 />
@@ -88,25 +146,25 @@
 <main id="main-content" class="container">
   {#if activeTab === 'explorer'}
     <GraphExplorer
-      {controller}
+      controller={freeController}
       onOpenHelp={() => (isHelpOpen = true)}
     />
   {:else if activeTab === 'experiment'}
     <ExperimentView
       {runner}
       {audioCoordinator}
-      onNavigateToResults={() => (activeTab = 'results')}
+      onNavigateToResults={() => handleTabChange('results')}
       onOpenHelp={() => (isHelpOpen = true)}
     />
   {:else if activeTab === 'results'}
     <ResultsView
-      session={runner.getSession()}
+      {session}
       onClearData={handleClearData}
     />
   {:else if activeTab === 'settings'}
     <SettingsView
       {audioCoordinator}
-      {controller}
+      controller={freeController}
     />
   {/if}
 </main>

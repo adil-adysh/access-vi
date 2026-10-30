@@ -35,16 +35,20 @@
   let singleChoiceAnswer = $state('');
   let booleanAnswer = $state<boolean | null>(null);
   let reconstructionEdges = $state<EdgeInput[]>([]);
+  let lastTaskId = $state<string | null>(null);
 
   $effect(() => {
-    // Reset inputs when task changes
-    if (task.options && task.options.length > 0) {
-      singleChoiceAnswer = task.options[0];
-    } else {
-      singleChoiceAnswer = '';
+    // Reset inputs ONLY when task identity changes
+    if (task.id !== lastTaskId) {
+      lastTaskId = task.id;
+      if (task.options && task.options.length > 0) {
+        singleChoiceAnswer = task.options[0];
+      } else {
+        singleChoiceAnswer = '';
+      }
+      booleanAnswer = null;
+      reconstructionEdges = [];
     }
-    booleanAnswer = null;
-    reconstructionEdges = [];
   });
 
   function handleFinalSubmit(e: Event) {

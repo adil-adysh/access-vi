@@ -23,7 +23,7 @@
     onOpenHelp
   }: Props = $props();
 
-  let session: ExperimentSession = $state.raw(runner.getSession());
+  let session: ExperimentSession = $state(runner.getSession());
 
   $effect(() => {
     session = runner.getSession();
@@ -33,11 +33,25 @@
     return unsub;
   });
 
-  const currentCondition = $derived<ExperimentalConditionId>(runner.getCurrentCondition());
+  const currentCondition = $derived<ExperimentalConditionId>(
+    session.currentPhase === 'training'
+      ? 'condition_a_speech'
+      : session.conditionOrder[Math.min(session.currentBlockIndex, session.conditionOrder.length - 1)]
+  );
   const currentConditionDef = $derived(
     EXPERIMENTAL_CONDITIONS[currentCondition]
   );
-  const currentTask = $derived(runner.getCurrentTask());
+  const currentTask = $derived.by(() => {
+    if (!session) return null;
+    void session.currentBlockIndex;
+    void session.currentTrialIndex;
+    return runner.getCurrentTask();
+  });
+  const totalTasksInBlock = $derived.by(() => {
+    if (!session) return 0;
+    void session.currentBlockIndex;
+    return runner.getTotalTasksInBlock();
+  });
 </script>
 
 <div class="experiment-view-container">
@@ -93,7 +107,7 @@
         phase={session.currentPhase}
         blockIndex={session.currentBlockIndex}
         trialIndex={session.currentTrialIndex}
-        totalTrials={runner.getTotalTasksInBlock()}
+        totalTrials={totalTasksInBlock}
         conditionLabel={currentConditionDef.name}
         onStartExploration={() => runner.startTrialExploration()}
         onFinishExploration={() => runner.finishExplorationProceedToResponse()}
