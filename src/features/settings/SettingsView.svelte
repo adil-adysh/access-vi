@@ -8,9 +8,10 @@
   interface Props {
     audioCoordinator: AudioCoordinator;
     controller: ExplorationController;
+    isTrialActive?: boolean;
   }
 
-  let { audioCoordinator, controller }: Props = $props();
+  let { audioCoordinator, controller, isTrialActive = false }: Props = $props();
 
   let config = $state(audioCoordinator.getConfig());
   let currentCondition = $state<ExperimentalConditionId>(controller.getState().condition);
@@ -50,6 +51,12 @@
   <div class="card">
     <h2>Audio & Sonification Settings</h2>
 
+    {#if isTrialActive}
+      <div class="trial-locked-banner" role="alert">
+        <strong>🔒 Settings Locked:</strong> An experimental trial is currently in progress. Audio settings are frozen during trials to ensure controlled experimental measurement across participants.
+      </div>
+    {/if}
+
     <!-- Condition Selector for Explorer Mode -->
     <div class="setting-item">
       <label for="explorer-condition"><strong>Exploration Audio Condition:</strong></label>
@@ -57,6 +64,7 @@
       <select
         id="explorer-condition"
         value={currentCondition}
+        disabled={isTrialActive}
         onchange={(e) => handleConditionChange((e.target as HTMLSelectElement).value as ExperimentalConditionId)}
       >
         {#each Object.values(EXPERIMENTAL_CONDITIONS) as cond}
@@ -77,6 +85,7 @@
         min="0"
         max="1"
         step="0.05"
+        disabled={isTrialActive}
         value={config.masterVolume}
         oninput={handleVolumeChange}
       />
@@ -94,6 +103,7 @@
         min="0.5"
         max="2.0"
         step="0.1"
+        disabled={isTrialActive}
         value={config.playbackSpeed}
         oninput={handleSpeedChange}
       />
@@ -217,6 +227,17 @@
     gap: 6px;
     font-size: 14px;
     cursor: pointer;
+  }
+
+  .trial-locked-banner {
+    background: rgba(234, 179, 8, 0.15);
+    border: 1px solid #eab308;
+    color: #fef08a;
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    margin-bottom: 20px;
+    line-height: 1.5;
   }
 
   .info-list p {

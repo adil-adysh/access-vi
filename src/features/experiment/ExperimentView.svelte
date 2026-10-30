@@ -55,6 +55,12 @@
 </script>
 
 <div class="experiment-view-container">
+  {#if runner.getLastStorageResult() && !runner.getLastStorageResult()?.isPersistent}
+    <div class="storage-warning-banner" role="alert">
+      <strong>⚠️ Storage Warning:</strong> Browser IndexedDB is unavailable. Your session is currently saved in temporary memory only and will be lost on page reload. Please export your session data from the Results tab when finished.
+    </div>
+  {/if}
+
   {#if session.currentPhase === 'consent'}
     <div class="card consent-card">
       <h2>Research Study: Auditory Graph Explorer</h2>
@@ -115,6 +121,27 @@
         {onOpenHelp}
       />
     {/if}
+  {:else if session.currentPhase === 'trial_interrupted'}
+    <div class="card interruption-card" role="alert">
+      <h2>⚠️ Trial Interrupted</h2>
+      <p class="interruption-message">
+        This trial was paused or interrupted ({session.activeTrialInterruptedReason ?? 'participant left trial or window was blurred'}).
+      </p>
+      <p class="protocol-explanation">
+        <strong>Scientific Integrity Notice:</strong> Experimental graph reasoning tasks measure cognitive exploration time and mental model formation. Pausing midway introduces rehearsal confounds into timing measurements.
+      </p>
+      <div class="interruption-actions">
+        <button class="primary" onclick={() => runner.restartTrial()}>
+          ↺ Restart Trial (Recommended for Clean Data)
+        </button>
+        <button onclick={() => runner.resumeTrial()}>
+          ▶ Resume Trial (Exclude Paused Time)
+        </button>
+        <button class="danger" onclick={() => runner.abandonTrial('Participant chose to abandon after interruption')}>
+          ✕ Abandon Trial
+        </button>
+      </div>
+    </div>
   {:else if session.currentPhase === 'workload'}
     <WorkloadView
       onSubmit={(rating: WorkloadRating) => runner.submitWorkloadRating(rating)}
@@ -187,6 +214,49 @@
     display: flex;
     justify-content: flex-end;
     margin-top: 20px;
+  }
+
+  .storage-warning-banner {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid #ef4444;
+    color: #fca5a5;
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+
+  .interruption-card {
+    background: #181d2f;
+    border: 2px solid #eab308;
+    padding: 24px;
+    border-radius: 8px;
+  }
+
+  .interruption-message {
+    font-size: 16px;
+    color: #fef08a;
+    margin-bottom: 12px;
+  }
+
+  .protocol-explanation {
+    font-size: 14px;
+    color: var(--color-text-muted);
+    line-height: 1.6;
+    margin-bottom: 24px;
+  }
+
+  .interruption-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .interruption-actions .danger {
+    background: #991b1b;
+    border-color: #ef4444;
+    color: white;
   }
 
   .training-header {

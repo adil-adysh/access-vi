@@ -3,10 +3,11 @@
   import { AudioCoordinator } from './audio/AudioCoordinator.js';
   import { ExperimentRunner } from './research/recording/ExperimentRunner.js';
   import { IndexedDBStorage } from './storage/IndexedDBStorage.js';
-  import { getSampleGraphs } from './research/datasets/sampleGraphs.js';
+  import { getFreeExplorationGraphs } from './research/datasets/sampleGraphs.js';
   import { DEFAULT_FREE_POLICY } from './domain/navigation/types.js';
   import type { DirectedGraph } from './domain/graph/Graph.js';
   import type { NavigationState } from './domain/navigation/types.js';
+  import type { ExperimentSession } from './research/recording/types.js';
 
   import Header from './components/Header.svelte';
   import LiveAnnouncer from './components/LiveAnnouncer.svelte';
@@ -17,8 +18,8 @@
   import ResultsView from './features/results/ResultsView.svelte';
   import SettingsView from './features/settings/SettingsView.svelte';
 
-  const sampleGraphs = getSampleGraphs();
-  const initialGraph = sampleGraphs['graph-exp-1'];
+  const freeGraphs = getFreeExplorationGraphs();
+  const initialGraph = freeGraphs['free-sandbox-1'];
 
   const storage = new IndexedDBStorage();
   const audioCoordinator = new AudioCoordinator();
@@ -30,8 +31,11 @@
     'free_exploration',
     DEFAULT_FREE_POLICY
   );
-  const runner = new ExperimentRunner({}, storage);
-  const experimentController = runner.getController();
+
+  let runner = $state(
+    new ExperimentRunner({}, storage, undefined, undefined, audioCoordinator)
+  );
+  let experimentController = $derived(runner.getController());
 
   let activeTab = $state<'explorer' | 'experiment' | 'results' | 'settings'>('explorer');
   let isHelpOpen = $state(false);
@@ -41,6 +45,51 @@
   let assertiveAnnouncement = $state('');
   let freeNavState: NavigationState = $state(freeController.getState());
   let session = $state(runner.getSession());
+
+  // Session Recovery State
+  let recoverableSession = $state<ExperimentSession | null>(null);
+  let showRecoveryPrompt = $state(false);
+
+  // Discover saved sessions on mount
+  $effect(() => {
+    storage.getAllSessions().then((sessions) => {
+      const incomplete = sessions.find((s) => s.currentPhase !== 'completed');
+      if (incomplete && incomplete.sessionId !== runner.getSession().sessionId) {
+        recoverableSession = incomplete;
+        showRecoveryPrompt = true;
+      }
+    });
+  });
+
+  function handleResumeSession() {
+    if (recoverableSession) {
+      runner = new ExperimentRunner({}, storage, undefined, recoverableSession, audioCoordinator);
+      session = runner.getSession();
+      showRecoveryPrompt = false;
+      handleTabChange('experiment');
+    }
+  }
+
+  function handleDiscardSession() {
+    if (recoverableSession) {
+      storage.deleteSession(recoverableSession.sessionId);
+      recoverableSession = null;
+      showRecoveryPrompt = false;
+    }
+  }
+
+  // Intercept window visibility changes to detect backgrounding during active trials
+  $effect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'hidden' && runner.isTrialActive()) {
+        runner.recordInterruption('Browser window minimized or backgrounded');
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  });
 
   // Connect Free Controller with Audio Coordinator and Screen Reader Announcer
   $effect(() => {
@@ -135,6 +184,24 @@
   assertiveText={assertiveAnnouncement}
 />
 
+{#if showRecoveryPrompt && recoverableSession}
+  <div class="recovery-banner" role="region" aria-label="Incomplete Session Recovery">
+    <div class="container recovery-content">
+      <span>
+        Found saved session for Participant <strong>{recoverableSession.participantId}</strong> (Block {recoverableSession.currentBlockIndex + 1}, Trial {recoverableSession.currentTrialIndex + 1}).
+      </span>
+      <div class="recovery-btn-group">
+        <button class="primary" onclick={handleResumeSession}>
+          Resume Session
+        </button>
+        <button class="danger" onclick={handleDiscardSession}>
+          Discard & Start New
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <Header
   {activeTab}
   condition={currentDisplayedCondition}
@@ -165,6 +232,7 @@
     <SettingsView
       {audioCoordinator}
       controller={freeController}
+      isTrialActive={runner.isTrialActive()}
     />
   {/if}
 </main>
@@ -179,3 +247,32 @@
   onClose={() => (isImportOpen = false)}
   onGraphLoaded={handleGraphLoaded}
 />
+
+<style>
+  .recovery-banner {
+    background: #1e1b4b;
+    border-bottom: 2px solid #6366f1;
+    color: #e0e7ff;
+    padding: 10px 0;
+    font-size: 14px;
+  }
+
+  .recovery-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .recovery-btn-group {
+    display: flex;
+    gap: 8px;
+  }
+
+  .recovery-btn-group .danger {
+    background: #7f1d1d;
+    border-color: #ef4444;
+    color: white;
+  }
+</style>

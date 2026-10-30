@@ -9,6 +9,7 @@ export type ExperimentPhase =
   | 'trial_prep'
   | 'trial_active'
   | 'trial_response'
+  | 'trial_interrupted'
   | 'workload'
   | 'rest'
   | 'completed';
@@ -28,6 +29,15 @@ export interface WorkloadRating {
 }
 
 export type TrialStatus = 'completed' | 'timeout' | 'interrupted' | 'abandoned';
+
+export interface AudioSettingsSnapshot {
+  readonly waveform: string;
+  readonly playbackSpeed: number;
+  readonly masterVolume: number;
+  readonly baseFrequencyHz?: number;
+  readonly useSpatial?: boolean;
+  readonly sonificationVersion?: string;
+}
 
 export interface TrialLog {
   readonly trialId: string;
@@ -52,13 +62,11 @@ export interface TrialLog {
   readonly backtrackCount: number;
   readonly traversalCount: number;
   readonly status: TrialStatus;
+  readonly interruptionReason?: string;
+  readonly pauseCount?: number;
+  readonly pausedDurationMs?: number;
   readonly audioMappingVersion?: string;
-  readonly audioSettings?: {
-    readonly waveform: string;
-    readonly playbackSpeed: number;
-    readonly masterVolume: number;
-    readonly sonificationVersion: string;
-  };
+  readonly audioSettings?: AudioSettingsSnapshot;
 }
 
 export interface ExperimentSession {
@@ -76,6 +84,9 @@ export interface ExperimentSession {
   readonly trials: TrialLog[];
   readonly workloadRatings: Partial<Record<ExperimentalConditionId, WorkloadRating>>;
   readonly notes?: string;
+  readonly activeTrialInterruptedReason?: string;
+  readonly activeTrialPausedAt?: number;
+  readonly interruptedPhaseBeforePause?: 'trial_active' | 'trial_response';
 }
 
 export interface ExperimentConfig {

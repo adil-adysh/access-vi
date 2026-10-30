@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
+import 'fake-indexeddb/auto';
 import { ExperimentRunner } from '../../src/research/recording/ExperimentRunner.js';
 import { ExportService } from '../../src/research/recording/ExportService.js';
 import { IndexedDBStorage } from '../../src/storage/IndexedDBStorage.js';
 import { ExplorationController } from '../../src/domain/navigation/ExplorationController.js';
 import { DirectedGraph } from '../../src/domain/graph/Graph.js';
+import { AudioCoordinator } from '../../src/audio/AudioCoordinator.js';
 
 describe('Experiment Runner & Session Lifecycle Integration', () => {
   it('walks through entire experiment session lifecycle and records metrics', async () => {
@@ -236,5 +238,91 @@ describe('Experiment Runner & Session Lifecycle Integration', () => {
     runner.submitWorkloadRating(submittedRating);
     const cond = runner.getSession().conditionOrder[0];
     expect(runner.getSession().workloadRatings[cond]).toEqual(submittedRating);
+  });
+
+  it('captures real audio configuration from coordinator and records actual parameters in trial and CSV', () => {
+    const storage = new IndexedDBStorage();
+    const audioCoordinator = new AudioCoordinator();
+    audioCoordinator.updateConfig({
+      masterVolume: 0.42,
+      playbackSpeed: 1.25,
+      baseFrequencyHz: 330
+    });
+
+    const runner = new ExperimentRunner(
+      { participantId: 'P_AUDIO_CONFIG' },
+      storage,
+      undefined,
+      undefined,
+      audioCoordinator
+    );
+
+    runner.acceptConsent();
+    runner.completeCalibration();
+    runner.completeTraining();
+    runner.startTrialExploration();
+    runner.finishExplorationProceedToResponse();
+    runner.submitTrialResponse('A');
+
+    const trial = runner.getSession().trials[0];
+    expect(trial.audioSettings).toBeDefined();
+    expect(trial.audioSettings?.masterVolume).toBe(0.42);
+    expect(trial.audioSettings?.playbackSpeed).toBe(1.25);
+    expect(trial.audioSettings?.baseFrequencyHz).toBe(330);
+
+    const csv = ExportService.exportCSV(runner.getSession());
+    expect(csv).toContain('0.42');
+    expect(csv).toContain('1.25');
+  });
+
+  it('handles interruption lifecycle: pause, restart, and exclusion of interrupted attempts', () => {
+    const storage = new IndexedDBStorage();
+    const runner = new ExperimentRunner({ participantId: 'P_INTERRUPT_FLOW' }, storage);
+
+    runner.acceptConsent();
+    runner.completeCalibration();
+    runner.completeTraining();
+    runner.startTrialExploration();
+
+    expect(runner.isTrialActive()).toBe(true);
+    runner.recordInterruption('User minimized window');
+
+    expect(runner.getSession().currentPhase).toBe('trial_interrupted');
+    expect(runner.isTrialActive()).toBe(true); // Locked while trial is interrupted/paused
+
+    // Restart trial: previous attempt is recorded as 'interrupted', new attempt begins at trial_active
+    runner.restartTrial();
+    expect(runner.getSession().currentPhase).toBe('trial_active');
+
+    const interruptedAttempt = runner.getSession().trials.find((t) => t.status === 'interrupted');
+    expect(interruptedAttempt).toBeDefined();
+    expect(interruptedAttempt?.interruptionReason).toBe('User minimized window');
+
+    // Finish new attempt cleanly
+    runner.finishExplorationProceedToResponse();
+    runner.submitTrialResponse('A');
+
+    const completedAttempt = runner.getSession().trials.find((t) => t.status === 'completed');
+    expect(completedAttempt).toBeDefined();
+  });
+
+  it('safely rehydrates an interrupted session upon browser reload into trial_interrupted phase', () => {
+    const storage = new IndexedDBStorage();
+    const runner1 = new ExperimentRunner({ participantId: 'P_RELOAD' }, storage);
+
+    runner1.acceptConsent();
+    runner1.completeCalibration();
+    runner1.completeTraining();
+    runner1.startTrialExploration();
+
+    const activeSession = runner1.getSession();
+    expect(activeSession.currentPhase).toBe('trial_active');
+
+    // Simulate browser reload where saved session is loaded on startup
+    const runner2 = new ExperimentRunner({}, storage, undefined, activeSession);
+
+    // Runner2 must NOT blindly continue with corrupted monotonic time
+    expect(runner2.getSession().currentPhase).toBe('trial_interrupted');
+    expect(runner2.getSession().activeTrialInterruptedReason).toContain('Browser reloaded');
   });
 });

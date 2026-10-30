@@ -9,7 +9,7 @@ export class ExportService {
   }
 
   /**
-   * Generates a CSV string containing trial-level data and workload ratings.
+   * Generates a CSV string containing trial-level data, timing, interruptions, audio configuration, and workload ratings.
    */
   public static exportCSV(session: ExperimentSession): string {
     const headers = [
@@ -21,6 +21,9 @@ export class ExportService {
       'graphId',
       'graphHash',
       'status',
+      'interruptionReason',
+      'pauseCount',
+      'pausedDurationMs',
       'taskId',
       'taskType',
       'isTraining',
@@ -34,6 +37,10 @@ export class ExportService {
       'inspectionCount',
       'backtrackCount',
       'traversalCount',
+      'waveform',
+      'playbackSpeed',
+      'masterVolume',
+      'audioMappingVersion',
       'mentalDemand',
       'physicalDemand',
       'temporalDemand',
@@ -58,6 +65,9 @@ export class ExportService {
         trial.graphId,
         trial.graphHash ?? '',
         trial.status ?? 'completed',
+        trial.interruptionReason ?? '',
+        (trial.pauseCount ?? 0).toString(),
+        (trial.pausedDurationMs ?? 0).toFixed(0),
         trial.task.id,
         trial.task.type,
         trial.isTraining ? 'true' : 'false',
@@ -71,6 +81,10 @@ export class ExportService {
         trial.inspectionCount.toString(),
         trial.backtrackCount.toString(),
         trial.traversalCount.toString(),
+        trial.audioSettings?.waveform ?? '',
+        trial.audioSettings?.playbackSpeed !== undefined ? trial.audioSettings.playbackSpeed.toString() : '',
+        trial.audioSettings?.masterVolume !== undefined ? trial.audioSettings.masterVolume.toString() : '',
+        trial.audioMappingVersion ?? trial.audioSettings?.sonificationVersion ?? '',
         workload?.mentalDemand?.toString() ?? '',
         workload?.physicalDemand?.toString() ?? '',
         workload?.temporalDemand?.toString() ?? '',

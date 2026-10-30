@@ -29,7 +29,10 @@
     );
   }
 
-  const completedTrials = $derived(session.trials);
+  const allTrials = $derived(session.trials);
+  const completedTrials = $derived(allTrials.filter((t: { status: string }) => t.status === 'completed'));
+  const interruptedTrials = $derived(allTrials.filter((t: { status: string }) => t.status !== 'completed'));
+
   const totalCorrect = $derived(
     completedTrials.filter((t: { evaluation: { isCorrect: boolean } }) => t.evaluation.isCorrect).length
   );
@@ -72,7 +75,7 @@
     <div class="stats-grid">
       <div class="stat-card">
         <span class="stat-num">{completedTrials.length}</span>
-        <span class="stat-label">Trials Completed</span>
+        <span class="stat-label">Valid Completed Trials{#if interruptedTrials.length > 0} ({interruptedTrials.length} excluded){/if}</span>
       </div>
       <div class="stat-card">
         <span class="stat-num">{accuracyPct}%</span>
@@ -88,13 +91,14 @@
   <!-- Trial By Trial Breakdown Table -->
   <div class="card">
     <h3>Completed Trial Breakdown</h3>
-    {#if completedTrials.length === 0}
+    {#if allTrials.length === 0}
       <p class="empty-text">No experimental trials recorded yet. Start an experiment session from the Research Experiment tab.</p>
     {:else}
       <div class="table-wrapper">
         <table class="results-table">
           <thead>
             <tr>
+              <th scope="col">Status</th>
               <th scope="col">Block / Condition</th>
               <th scope="col">Task Type</th>
               <th scope="col">Outcome</th>
@@ -106,9 +110,14 @@
             </tr>
           </thead>
           <tbody>
-            {#each completedTrials as trial}
+            {#each allTrials as trial}
               {@const condId = trial.condition as ExperimentalConditionId}
               <tr>
+                <td>
+                  <span class={`outcome-tag status-${trial.status}`}>
+                    {trial.status}
+                  </span>
+                </td>
                 <td>
                   <strong>{EXPERIMENTAL_CONDITIONS[condId]?.shortLabel ?? trial.condition}</strong>
                 </td>

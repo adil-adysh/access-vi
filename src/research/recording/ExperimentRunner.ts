@@ -3,8 +3,8 @@ import { ExplorationController } from '../../domain/navigation/ExplorationContro
 import { TaskEvaluator } from '../../domain/tasks/TaskEvaluator.js';
 import { TaskFactory } from '../../domain/tasks/taskFactory.js';
 import { Counterbalance } from './Counterbalance.js';
-import { IndexedDBStorage } from '../../storage/IndexedDBStorage.js';
-import { getSampleGraphs } from '../datasets/sampleGraphs.js';
+import { IndexedDBStorage, type StorageResult } from '../../storage/IndexedDBStorage.js';
+import { getResearchStimuli } from '../datasets/sampleGraphs.js';
 import {
   DEFAULT_EXPERIMENT_POLICY,
   DEFAULT_TRAINING_POLICY
@@ -12,11 +12,14 @@ import {
 import type {
   ExperimentSession,
   TrialLog,
+  TrialStatus,
   WorkloadRating,
-  ExperimentConfig
+  ExperimentConfig,
+  AudioSettingsSnapshot
 } from './types.js';
 import type { TaskDefinition, TaskSubmission, TaskEvaluationResult } from '../../domain/tasks/types.js';
 import type { ExperimentalConditionId } from '../../domain/navigation/types.js';
+import type { AudioCoordinator } from '../../audio/AudioCoordinator.js';
 
 export type ExperimentListener = (session: ExperimentSession) => void;
 
@@ -25,6 +28,7 @@ export class ExperimentRunner {
   private readonly storage: IndexedDBStorage;
   private readonly allGraphs: Record<string, DirectedGraph>;
   private readonly controller: ExplorationController;
+  private readonly audioCoordinator: AudioCoordinator | null = null;
 
   private currentTasks: TaskDefinition[] = [];
   private activeTrialStartTime: number = 0;
@@ -32,17 +36,30 @@ export class ExperimentRunner {
   private explorationDurationMs: number = 0;
   private responseMonotonicStart: number = 0;
 
+  // Interruption and Pause state
+  private pauseMonotonicStart: number = 0;
+  private totalPausedDurationMs: number = 0;
+  private pauseCount: number = 0;
+  private interruptedPhase: 'trial_active' | 'trial_response' = 'trial_active';
+  private interruptionReason: string = '';
+
+  // Audio snapshot frozen at trial start
+  private activeTrialAudioSnapshot: AudioSettingsSnapshot | null = null;
+
+  private lastStorageResult: StorageResult | null = null;
   private lastPersistenceError: Error | null = null;
   private listeners: Set<ExperimentListener> = new Set();
 
   constructor(
-    config: Partial<ExperimentConfig> = {},
+    config: Partial<ExperimentConfig> & { audioCoordinator?: AudioCoordinator } = {},
     storage?: IndexedDBStorage,
     controller?: ExplorationController,
-    initialSession?: ExperimentSession
+    initialSession?: ExperimentSession,
+    audioCoordinator?: AudioCoordinator
   ) {
     this.storage = storage ?? new IndexedDBStorage();
-    this.allGraphs = getSampleGraphs();
+    this.audioCoordinator = audioCoordinator ?? config.audioCoordinator ?? null;
+    this.allGraphs = getResearchStimuli();
     this.controller = controller ?? new ExplorationController(
       undefined,
       'condition_a_speech',
@@ -51,8 +68,26 @@ export class ExperimentRunner {
     );
 
     if (initialSession) {
-      this.session = initialSession;
-      this.setupControllerForCurrentTask();
+      if (!ExperimentRunner.validateSessionSchema(initialSession)) {
+        throw new Error('Invalid experiment session schema; cannot rehydrate session.');
+      }
+
+      // If reloaded while a trial was active or in response, do not resume as if uninterrupted
+      if (initialSession.currentPhase === 'trial_active' || initialSession.currentPhase === 'trial_response') {
+        const phaseBefore = initialSession.currentPhase;
+        this.interruptedPhase = phaseBefore;
+        this.interruptionReason = 'Browser reloaded / tab closed while trial was active';
+        this.session = {
+          ...initialSession,
+          currentPhase: 'trial_interrupted',
+          activeTrialInterruptedReason: this.interruptionReason,
+          activeTrialPausedAt: Date.now(),
+          interruptedPhaseBeforePause: phaseBefore
+        };
+      } else {
+        this.session = initialSession;
+      }
+      this.prepareBlock(this.session.currentBlockIndex);
     } else {
       const participantId = config.participantId ?? `P_${Math.floor(100 + Math.random() * 900)}`;
       const conditionOrder =
@@ -77,6 +112,22 @@ export class ExperimentRunner {
     }
   }
 
+  public static validateSessionSchema(data: unknown): data is ExperimentSession {
+    if (!data || typeof data !== 'object') return false;
+    const s = data as Record<string, unknown>;
+    return (
+      typeof s.sessionId === 'string' &&
+      typeof s.participantId === 'string' &&
+      Array.isArray(s.conditionOrder) &&
+      s.conditionOrder.length === 3 &&
+      typeof s.currentPhase === 'string' &&
+      typeof s.currentBlockIndex === 'number' &&
+      typeof s.currentTrialIndex === 'number' &&
+      Array.isArray(s.trials) &&
+      typeof s.workloadRatings === 'object'
+    );
+  }
+
   public getSession(): ExperimentSession {
     return { ...this.session };
   }
@@ -85,8 +136,20 @@ export class ExperimentRunner {
     return this.controller;
   }
 
+  public getLastStorageResult(): StorageResult | null {
+    return this.lastStorageResult;
+  }
+
   public getLastPersistenceError(): Error | null {
     return this.lastPersistenceError;
+  }
+
+  public isTrialActive(): boolean {
+    return (
+      this.session.currentPhase === 'trial_active' ||
+      this.session.currentPhase === 'trial_response' ||
+      this.session.currentPhase === 'trial_interrupted'
+    );
   }
 
   public getCurrentCondition(): ExperimentalConditionId {
@@ -159,19 +222,32 @@ export class ExperimentRunner {
   }
 
   public startTrialExploration(): void {
-    if (this.session.currentPhase !== 'trial_prep') {
+    if (this.session.currentPhase !== 'trial_prep' && this.session.currentPhase !== 'trial_interrupted') {
       throw new Error(`Invalid phase transition: cannot start exploration from phase "${this.session.currentPhase}".`);
     }
+
+    const nowMonotonic = typeof performance !== 'undefined' ? performance.now() : Date.now();
     this.activeTrialStartTime = Date.now();
-    this.explorationMonotonicStart =
-      typeof performance !== 'undefined' ? performance.now() : Date.now();
+    this.explorationMonotonicStart = nowMonotonic;
+    this.explorationDurationMs = 0;
+    this.responseMonotonicStart = 0;
+    this.pauseMonotonicStart = 0;
+    this.totalPausedDurationMs = 0;
+    this.pauseCount = 0;
+    this.interruptionReason = '';
+
+    // Capture frozen immutable snapshot of audio settings from coordinator
+    this.activeTrialAudioSnapshot = this.captureAudioSnapshot();
 
     this.controller.resetActionHistory();
     this.controller.setMode('experiment_trial');
     this.controller.setExposurePolicy(DEFAULT_EXPERIMENT_POLICY);
     this.session = {
       ...this.session,
-      currentPhase: 'trial_active'
+      currentPhase: 'trial_active',
+      activeTrialInterruptedReason: undefined,
+      activeTrialPausedAt: undefined,
+      interruptedPhaseBeforePause: undefined
     };
     this.persistAndNotify();
   }
@@ -181,7 +257,8 @@ export class ExperimentRunner {
       throw new Error(`Invalid phase transition: cannot finish exploration from phase "${this.session.currentPhase}".`);
     }
     const nowMonotonic = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    this.explorationDurationMs = Math.max(0, nowMonotonic - this.explorationMonotonicStart);
+    const activeSegment = Math.max(0, nowMonotonic - this.explorationMonotonicStart);
+    this.explorationDurationMs += activeSegment;
     this.responseMonotonicStart = nowMonotonic;
 
     this.controller.cancelPlayback();
@@ -244,8 +321,10 @@ export class ExperimentRunner {
       backtrackCount,
       traversalCount,
       status: 'completed',
-      audioMappingVersion: this.session.sonificationVersion,
-      audioSettings: {
+      pauseCount: this.pauseCount,
+      pausedDurationMs: this.totalPausedDurationMs,
+      audioMappingVersion: this.activeTrialAudioSnapshot?.sonificationVersion ?? this.session.sonificationVersion,
+      audioSettings: this.activeTrialAudioSnapshot ?? {
         waveform: 'sine',
         playbackSpeed: 1.0,
         masterVolume: 0.7,
@@ -258,25 +337,98 @@ export class ExperimentRunner {
       trials: [...this.session.trials, trialLog]
     };
 
-    // Advance trial or block
-    if (this.session.currentTrialIndex + 1 < this.currentTasks.length) {
-      // Next trial in current block
+    this.advanceToNextTrialOrPhase();
+    return evaluation;
+  }
+
+  public recordInterruption(reason: string): void {
+    if (this.session.currentPhase === 'trial_active' || this.session.currentPhase === 'trial_response') {
+      this.controller.cancelPlayback(reason);
+      const nowMonotonic = typeof performance !== 'undefined' ? performance.now() : Date.now();
+
+      // Accumulate exploration duration up to the interruption point
+      if (this.session.currentPhase === 'trial_active') {
+        const segment = Math.max(0, nowMonotonic - this.explorationMonotonicStart);
+        this.explorationDurationMs += segment;
+      }
+
+      this.pauseMonotonicStart = nowMonotonic;
+      this.interruptedPhase = this.session.currentPhase;
+      this.interruptionReason = reason;
+
       this.session = {
         ...this.session,
-        currentTrialIndex: this.session.currentTrialIndex + 1,
-        currentPhase: 'trial_prep'
+        currentPhase: 'trial_interrupted',
+        activeTrialInterruptedReason: reason,
+        activeTrialPausedAt: Date.now(),
+        interruptedPhaseBeforePause: this.interruptedPhase
       };
-      this.setupControllerForCurrentTask();
-    } else {
-      // Completed all tasks in current block -> move to Workload questionnaire
-      this.session = {
-        ...this.session,
-        currentPhase: 'workload'
-      };
+
+      this.persistAndNotify();
+    }
+  }
+
+  public resumeTrial(): void {
+    if (this.session.currentPhase !== 'trial_interrupted') {
+      throw new Error(`Invalid phase transition: cannot resume trial from phase "${this.session.currentPhase}".`);
     }
 
+    const nowMonotonic = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (this.pauseMonotonicStart > 0) {
+      const pausedMs = Math.max(0, nowMonotonic - this.pauseMonotonicStart);
+      this.totalPausedDurationMs += pausedMs;
+      this.pauseCount++;
+    }
+
+    // Reset monotonic start time for remaining active duration
+    if (this.interruptedPhase === 'trial_active') {
+      this.explorationMonotonicStart = nowMonotonic;
+    } else {
+      this.responseMonotonicStart = nowMonotonic;
+    }
+
+    this.session = {
+      ...this.session,
+      currentPhase: this.interruptedPhase,
+      activeTrialInterruptedReason: undefined,
+      activeTrialPausedAt: undefined,
+      interruptedPhaseBeforePause: undefined
+    };
+
     this.persistAndNotify();
-    return evaluation;
+  }
+
+  public restartTrial(): void {
+    if (this.session.currentPhase !== 'trial_interrupted') {
+      throw new Error(`Invalid phase transition: cannot restart trial from phase "${this.session.currentPhase}".`);
+    }
+
+    // Log the interrupted attempt for audit traceability
+    this.recordInterruptedTrialLog('interrupted');
+
+    // Reset trial state and start cleanly from the beginning
+    this.setupControllerForCurrentTask();
+    this.startTrialExploration();
+  }
+
+  public abandonTrial(reason: string = 'Participant abandoned trial'): void {
+    if (this.session.currentPhase !== 'trial_interrupted' && !this.isTrialActive()) {
+      throw new Error(`Invalid phase transition: cannot abandon trial from phase "${this.session.currentPhase}".`);
+    }
+
+    this.interruptionReason = reason;
+    this.recordInterruptedTrialLog('abandoned');
+    this.advanceToNextTrialOrPhase();
+  }
+
+  public timeoutTrial(): void {
+    if (!this.isTrialActive() && this.session.currentPhase !== 'trial_interrupted') {
+      throw new Error(`Invalid phase transition: cannot timeout trial from phase "${this.session.currentPhase}".`);
+    }
+
+    this.interruptionReason = 'Trial timeout limit reached';
+    this.recordInterruptedTrialLog('timeout');
+    this.advanceToNextTrialOrPhase();
   }
 
   public submitWorkloadRating(rating: WorkloadRating): void {
@@ -327,16 +479,108 @@ export class ExperimentRunner {
     this.persistAndNotify();
   }
 
-  public recordInterruption(reason: string): void {
-    if (this.session.currentPhase === 'trial_active') {
-      this.controller.cancelPlayback(reason);
-    }
-  }
-
   public subscribe(listener: ExperimentListener): () => void {
     this.listeners.add(listener);
     listener(this.getSession());
     return () => this.listeners.delete(listener);
+  }
+
+  private advanceToNextTrialOrPhase(): void {
+    this.controller.cancelPlayback();
+    if (this.session.currentTrialIndex + 1 < this.currentTasks.length) {
+      this.session = {
+        ...this.session,
+        currentTrialIndex: this.session.currentTrialIndex + 1,
+        currentPhase: 'trial_prep',
+        activeTrialInterruptedReason: undefined,
+        activeTrialPausedAt: undefined,
+        interruptedPhaseBeforePause: undefined
+      };
+      this.setupControllerForCurrentTask();
+    } else {
+      this.session = {
+        ...this.session,
+        currentPhase: 'workload',
+        activeTrialInterruptedReason: undefined,
+        activeTrialPausedAt: undefined,
+        interruptedPhaseBeforePause: undefined
+      };
+    }
+    this.persistAndNotify();
+  }
+
+  private recordInterruptedTrialLog(status: TrialStatus): void {
+    const graph = this.getCurrentGraph();
+    const task = this.getCurrentTask();
+    if (!task) return;
+
+    const navLog = this.controller.getActionHistory();
+    const now = Date.now();
+
+    const submission: TaskSubmission = {
+      taskId: task.id,
+      answer: 'UNFINISHED',
+      startTimeMonotonicMs: this.explorationMonotonicStart,
+      endTimeMonotonicMs: typeof performance !== 'undefined' ? performance.now() : now,
+      durationMs: this.explorationDurationMs
+    };
+
+    const evaluation: TaskEvaluationResult = {
+      taskId: task.id,
+      taskType: task.type,
+      isCorrect: false,
+      score: 0,
+      expectedAnswer: null,
+      actualAnswer: 'UNFINISHED',
+      explanation: `Trial was not completed (status: ${status}, reason: ${this.interruptionReason || 'unknown'}).`
+    };
+
+    const trialLog: TrialLog = {
+      trialId: `trial_${this.session.currentBlockIndex}_${this.session.currentTrialIndex}_${now}`,
+      blockIndex: this.session.currentBlockIndex,
+      trialIndexInBlock: this.session.currentTrialIndex,
+      isTraining: false,
+      condition: this.getCurrentCondition(),
+      graphId: graph.getMetadata().id,
+      graphHash: graph.computeHash(),
+      graphMetrics: graph.getMetadata().difficultyMetrics,
+      task,
+      submission,
+      evaluation,
+      navigationLog: navLog,
+      startTimestamp: this.activeTrialStartTime,
+      endTimestamp: now,
+      durationMs: this.explorationDurationMs,
+      explorationDurationMs: this.explorationDurationMs,
+      responseDurationMs: 0,
+      replayCount: navLog.filter((e) => e.actionType === 'REPLAY').length,
+      inspectionCount: navLog.filter((e) => e.actionType === 'INSPECT').length,
+      backtrackCount: navLog.filter((e) => e.actionType === 'GO_BACK').length,
+      traversalCount: navLog.filter((e) => e.actionType === 'TRAVERSE').length,
+      status,
+      interruptionReason: this.interruptionReason,
+      pauseCount: this.pauseCount,
+      pausedDurationMs: this.totalPausedDurationMs,
+      audioMappingVersion: this.activeTrialAudioSnapshot?.sonificationVersion ?? this.session.sonificationVersion,
+      audioSettings: this.activeTrialAudioSnapshot ?? undefined
+    };
+
+    this.session = {
+      ...this.session,
+      trials: [...this.session.trials, trialLog]
+    };
+  }
+
+  private captureAudioSnapshot(): AudioSettingsSnapshot {
+    const cfg = this.audioCoordinator?.getConfig();
+    return {
+      waveform: 'sine',
+      playbackSpeed: cfg?.playbackSpeed ?? 1.0,
+      masterVolume: cfg?.masterVolume ?? 0.7,
+      baseFrequencyHz: cfg?.baseFrequencyHz ?? 220,
+      useSpatial: this.getCurrentCondition() === 'condition_c_spatial',
+      sonificationVersion: cfg?.version ?? this.session.sonificationVersion
+    };
   }
 
   private prepareBlock(_blockIndex: number): void {
@@ -360,9 +604,15 @@ export class ExperimentRunner {
   }
 
   private persistAndNotify(): void {
-    this.storage.saveSession(this.session).catch((err) => {
+    this.storage.saveSession(this.session).then((result) => {
+      this.lastStorageResult = result;
+      if (!result.isPersistent && result.error) {
+        this.lastPersistenceError = result.error;
+        console.warn('IndexedDB persistence warning:', result.error);
+      }
+    }).catch((err) => {
       this.lastPersistenceError = err instanceof Error ? err : new Error(String(err));
-      console.warn('Failed to save session to IndexedDB:', err);
+      console.warn('Failed to save session:', err);
     });
 
     const sessionCopy = this.getSession();
