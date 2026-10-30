@@ -4,7 +4,11 @@
 
 Access-VI investigates whether interactive nonvisual representations—beginning with a keyboard-first auditory explorer for **directed graphs**—can help blind people independently discover, remember, and reason about structure.
 
-The first prototype compares three conditions: **speech-only exploration**, **non-spatial sonification**, and **stereo-spatial sonification**. The research question is whether the representations differ in structural reasoning accuracy, task time, workload, retention, and transfer. The outcome is open; this is not a claim that spatial audio is superior.
+## Governing research direction
+
+**Faithful access comes first.** Establish a complete, independently explorable nonvisual reference for the *supported information* communicated by the original graph, verify its fidelity and user comprehension, then experimentally optimize for auditory interaction without losing original-information access. See the [accepted three-stage research strategy](docs/13-faithful-access-to-audio-first-research-strategy.md) and [visual–auditory parity rule](docs/11-visual-auditory-parity-governing-rules.md). All graph text, including node and edge labels, belongs to the screen reader.
+
+The existing prototype separately compares three **legacy study conditions**: **speech-only exploration**, **non-spatial sonification**, and **stereo-spatial sonification**. These are not the three stages of the research strategy. Their outcomes remain open; this is not a claim that spatial audio is superior.
 
 ## Documentation
 
