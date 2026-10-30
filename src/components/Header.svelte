@@ -67,7 +67,7 @@
         Import
       </button>
 
-      <button class="nav-btn action-btn" onclick={onOpenHelp} aria-label="Keyboard Shortcuts and Help">
+      <button class="nav-btn action-btn" onclick={onOpenHelp} aria-label="Help (?) - Keyboard Shortcuts">
         Help (?)
       </button>
     </nav>

@@ -19,48 +19,96 @@
     return unsub;
   });
 
-  const availableNeighbors = $derived(controller.getAvailableNeighbors());
-  const selectedNeighbor = $derived(controller.getSelectedNeighbor());
+  const availableNeighbors = $derived(
+    navState.direction === 'outgoing'
+      ? navState.graph.getOutgoingNeighbors(navState.currentNodeId)
+      : navState.graph.getIncomingNeighbors(navState.currentNodeId)
+  );
+  const selectedNeighbor = $derived(
+    availableNeighbors[navState.selectedNeighborIndex] ?? null
+  );
   const meta = $derived(navState.graph.getMetadata());
   const metrics = $derived(meta.difficultyMetrics);
+  const exposure = $derived(navState.exposurePolicy);
+  const displayName = $derived(exposure.anonymizedGraphTitle ?? meta.name);
+
+  function isInteractiveElement(el: EventTarget | null): boolean {
+    if (!el || !(el instanceof HTMLElement)) return false;
+    const tag = el.tagName.toUpperCase();
+    return (
+      tag === 'BUTTON' ||
+      tag === 'INPUT' ||
+      tag === 'SELECT' ||
+      tag === 'TEXTAREA' ||
+      tag === 'A' ||
+      el.isContentEditable
+    );
+  }
 
   function handleKeydown(event: KeyboardEvent) {
+    // If a modal dialog is currently open in the DOM, suspend graph shortcuts
+    if (document.querySelector('dialog[open], [role="dialog"]')) {
+      return;
+    }
+
+    // Preserve Tab and Shift+Tab navigation without interference
+    if (event.key === 'Tab') {
+      return;
+    }
+
+    // Never intercept keypresses intended for interactive elements (buttons, inputs, etc.)
+    if (isInteractiveElement(event.target)) {
+      if (event.key === 'Escape') {
+        controller.cancelPlayback();
+        event.preventDefault();
+      }
+      return;
+    }
+
+    // Dispatch to controller keyboard commands when navigation container has focus
     if (controller.handleKeyboardCommand(event.key, event.ctrlKey, event.altKey)) {
       event.preventDefault();
     }
   }
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
-
 <div class="explorer-container">
   <div class="card graph-header">
     <div class="graph-title-row">
       <div>
-        <h2>{meta.name}</h2>
-        <p class="description">{meta.description ?? 'Directed Graph'}</p>
+        <h2>{displayName}</h2>
+        {#if exposure.showGraphDescription && meta.description}
+          <p class="description">{meta.description}</p>
+        {/if}
       </div>
       <div class="metrics-badge-row">
-        {#if metrics}
+        {#if exposure.showGlobalMetrics && metrics}
           <span class="badge" title="Node Count">{metrics.nodeCount} Nodes</span>
           <span class="badge" title="Edge Count">{metrics.edgeCount} Edges</span>
           <span class="badge" title="Cycles Present">{metrics.hasCycles ? 'Has Cycles' : 'Acyclic (DAG)'}</span>
+        {:else if metrics}
+          <span class="badge" title="Node Count">{metrics.nodeCount} Nodes</span>
+          <span class="badge" title="Study Stimulus">Study Stimulus</span>
         {/if}
       </div>
     </div>
   </div>
 
-  <!-- Interactive Exploration Panel -->
+  <!-- Interactive Exploration Panel (Keyboard Accessible Region) -->
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <div
     class="card explorer-panel"
+    tabindex="0"
     role="region"
-    aria-label={`Graph Exploration Panel for ${meta.name}. Use arrow keys to navigate.`}
+    aria-label={`Graph Exploration Workspace for ${displayName}. Press Tab to move to buttons, Shift+Tab to leave, Arrow keys or H/J/K/L to navigate.`}
+    onkeydown={handleKeydown}
   >
     <div class="panel-header">
       <span class="hint-text">
-        Keyboard controls active. Use <strong>Arrows</strong> to navigate, <strong>D</strong> for direction, <strong>R</strong> to replay.
+        Graph navigation active. Use <strong>Arrows</strong> to navigate, <strong>D</strong> for direction, <strong>R</strong> to replay, <strong>Tab</strong> to exit.
       </span>
-      <button class="help-btn" onclick={onOpenHelp} aria-label="Open Keyboard Help Dialog">
+      <button class="help-btn" onclick={onOpenHelp} aria-label="Keyboard Guide (?) - Open Keyboard Help Dialog">
         Keyboard Guide (?)
       </button>
     </div>
@@ -111,16 +159,15 @@
           No {navState.direction} connections from Node {navState.currentNodeId}.
         </p>
       {:else}
-        <ul class="neighbor-list" role="listbox" aria-label={`${navState.direction} connections list`}>
+        <ul class="neighbor-list" aria-label={`${navState.direction} connections list`}>
           {#each availableNeighbors as neighbor, idx}
             <li
               class={idx === navState.selectedNeighborIndex ? 'neighbor-item selected' : 'neighbor-item'}
-              role="option"
-              aria-selected={idx === navState.selectedNeighborIndex}
             >
               <button
                 class="neighbor-select-btn"
                 onclick={() => controller.selectNeighborByIndex(idx)}
+                aria-current={idx === navState.selectedNeighborIndex ? 'true' : undefined}
               >
                 <span class="indicator">{idx === navState.selectedNeighborIndex ? '▶' : '•'}</span>
                 <strong>Node {neighbor}</strong>
@@ -136,11 +183,11 @@
 
     <!-- Controls Button Bar -->
     <div class="actions-grid">
-      <button onclick={() => controller.prevNeighbor()} aria-label="Previous Neighbor (Up Arrow)">
+      <button onclick={() => controller.prevNeighbor()} aria-label="▲ Prev Neighbor (K) - Up Arrow">
         ▲ Prev Neighbor (K)
       </button>
 
-      <button onclick={() => controller.nextNeighbor()} aria-label="Next Neighbor (Down Arrow)">
+      <button onclick={() => controller.nextNeighbor()} aria-label="▼ Next Neighbor (J) - Down Arrow">
         ▼ Next Neighbor (J)
       </button>
 
@@ -148,7 +195,7 @@
         class="primary"
         onclick={() => controller.traverseSelectedNeighbor()}
         disabled={!selectedNeighbor}
-        aria-label="Traverse to selected neighbor (Right Arrow or Enter)"
+        aria-label={`Traverse into Node ${selectedNeighbor ?? '—'} (Enter)`}
       >
         Traverse into Node {selectedNeighbor ?? '—'} (Enter)
       </button>
@@ -156,24 +203,24 @@
       <button
         onclick={() => controller.goBack()}
         disabled={navState.history.length === 0}
-        aria-label="Go Back to previous node (Left Arrow or Backspace)"
+        aria-label="◀ Go Back (Left Arrow or Backspace)"
       >
         ◀ Go Back
       </button>
 
-      <button onclick={() => controller.goToStartNode()} aria-label="Return to Start Node (Home key)">
+      <button onclick={() => controller.goToStartNode()} aria-label="⌂ Go to Start (H) - Home key">
         ⌂ Go to Start (H)
       </button>
 
-      <button onclick={() => controller.replay()} aria-label="Replay Audio (R key)">
+      <button onclick={() => controller.replay()} aria-label="♫ Replay Audio (R)">
         ♫ Replay Audio (R)
       </button>
 
-      <button onclick={() => controller.inspectCurrentNode()} aria-label="Inspect Node Details (I key)">
+      <button onclick={() => controller.inspectCurrentNode()} aria-label="ℹ Inspect Node (I)">
         ℹ Inspect Node (I)
       </button>
 
-      <button class="danger" onclick={() => controller.cancelPlayback()} aria-label="Cancel Audio Playback (Escape)">
+      <button class="danger" onclick={() => controller.cancelPlayback()} aria-label="✕ Stop Audio (Esc)">
         ✕ Stop Audio (Esc)
       </button>
     </div>
@@ -204,38 +251,44 @@
     {/if}
   </div>
 
-  <!-- Textual Graph Structure Table (Accessibility Fallback) -->
-  <div class="card textual-structure">
-    <h3>Complete Textual Graph Structure</h3>
-    <table class="graph-table">
-      <thead>
-        <tr>
-          <th scope="col">Node</th>
-          <th scope="col">Incoming Connections</th>
-          <th scope="col">Outgoing Connections</th>
-          <th scope="col">Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each navState.graph.getNodeIds() as nodeId}
-          <tr class={nodeId === navState.currentNodeId ? 'current-row' : ''}>
-            <td><strong>Node {nodeId}</strong></td>
-            <td>{navState.graph.getIncomingNeighbors(nodeId).join(', ') || 'None'}</td>
-            <td>{navState.graph.getOutgoingNeighbors(nodeId).join(', ') || 'None'}</td>
-            <td>
-              <button
-                class="jump-btn"
-                onclick={() => controller.jumpToNode(nodeId)}
-                aria-label={`Jump directly to Node ${nodeId}`}
-              >
-                Focus {nodeId}
-              </button>
-            </td>
+  <!-- Textual Graph Structure Table (Free Exploration Only) -->
+  {#if exposure.showAdjacencyTable}
+    <div class="card textual-structure">
+      <h3>Complete Textual Graph Structure</h3>
+      <table class="graph-table">
+        <thead>
+          <tr>
+            <th scope="col">Node</th>
+            <th scope="col">Incoming Connections</th>
+            <th scope="col">Outgoing Connections</th>
+            {#if exposure.allowNodeJumping}
+              <th scope="col">Action</th>
+            {/if}
           </tr>
-        {/each}
-      </tbody>
-    </table>
-  </div>
+        </thead>
+        <tbody>
+          {#each navState.graph.getNodeIds() as nodeId}
+            <tr class={nodeId === navState.currentNodeId ? 'current-row' : ''}>
+              <td><strong>Node {nodeId}</strong></td>
+              <td>{navState.graph.getIncomingNeighbors(nodeId).join(', ') || 'None'}</td>
+              <td>{navState.graph.getOutgoingNeighbors(nodeId).join(', ') || 'None'}</td>
+              {#if exposure.allowNodeJumping}
+                <td>
+                  <button
+                    class="jump-btn"
+                    onclick={() => controller.jumpToNode(nodeId)}
+                    aria-label={`Focus ${nodeId} - Jump directly`}
+                  >
+                    Focus {nodeId}
+                  </button>
+                </td>
+              {/if}
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
+  {/if}
 </div>
 
 <style>

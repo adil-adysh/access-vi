@@ -61,7 +61,7 @@ export const KEY_BINDINGS: KeyBinding[] = [
     category: 'information'
   },
   {
-    key: '? / K',
+    key: '? / /',
     label: 'Help',
     description: 'Announce keyboard shortcuts and navigation instructions',
     category: 'information'

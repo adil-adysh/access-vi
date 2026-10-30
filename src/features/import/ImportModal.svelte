@@ -14,7 +14,30 @@
   let importFormat: 'dot' | 'json' = $state('dot');
   let inputText = $state('');
   let errorMessage = $state('');
+  let dialogElement = $state<HTMLElement | null>(null);
+  let previousActiveElement: HTMLElement | null = null;
   const sampleGraphs = getSampleGraphs();
+
+  $effect(() => {
+    if (isOpen) {
+      previousActiveElement = (document.activeElement as HTMLElement) ?? null;
+      setTimeout(() => {
+        if (dialogElement) {
+          const focusable = dialogElement.querySelectorAll<HTMLElement>(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          );
+          if (focusable.length > 0) {
+            focusable[0].focus();
+          } else {
+            dialogElement.focus();
+          }
+        }
+      }, 10);
+    } else if (previousActiveElement) {
+      previousActiveElement.focus();
+      previousActiveElement = null;
+    }
+  });
 
   function handleImport() {
     errorMessage = '';
@@ -44,19 +67,54 @@
     }
   }
 
-  function handleBackdropKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') {
+  function handleModalKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      onClose();
+      return;
+    }
+
+    if (event.key === 'Tab' && dialogElement) {
+      const focusables = Array.from(
+        dialogElement.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      );
+      if (focusables.length === 0) return;
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+
+      if (event.shiftKey) {
+        if (document.activeElement === first || document.activeElement === dialogElement) {
+          last.focus();
+          event.preventDefault();
+        }
+      } else {
+        if (document.activeElement === last) {
+          first.focus();
+          event.preventDefault();
+        }
+      }
+    }
+  }
+
+  function handleWindowKeydown(event: KeyboardEvent) {
+    if (isOpen && event.key === 'Escape') {
+      event.stopPropagation();
       onClose();
     }
   }
 </script>
+
+<svelte:window onkeydown={handleWindowKeydown} />
 
 {#if isOpen}
   <div
     class="modal-backdrop"
     role="presentation"
     onclick={onClose}
-    onkeydown={handleBackdropKeydown}
+    onkeydown={handleModalKeydown}
   >
     <div
       class="modal-dialog"
@@ -64,12 +122,13 @@
       aria-modal="true"
       aria-labelledby="import-title"
       tabindex="-1"
+      bind:this={dialogElement}
       onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => e.stopPropagation()}
+      onkeydown={handleModalKeydown}
     >
       <div class="modal-header">
         <h2 id="import-title">Import Directed Graph</h2>
-        <button class="close-btn" onclick={onClose} aria-label="Close Import Dialog">✕</button>
+        <button class="close-btn" onclick={onClose} aria-label="✕ Close Import Dialog">✕</button>
       </div>
 
       <div class="modal-body">
