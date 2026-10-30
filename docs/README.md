@@ -18,7 +18,8 @@ This directory is the source of truth for research intent, testable claims and c
 8. [07 — Accessibility](07-accessibility.md): NVDA/keyboard/speech behavior and manual verification.
 9. [08 — Roadmap and acceptance](08-implementation-roadmap.md): staged delivery and tests.
 10. [09 — Decision log and uncertainties](09-decisions-and-risks.md): trade-offs, threats to validity and unresolved choices.
-11. [References](references.md): cited papers, standards and official APIs with links.
+11. [10 — Spatial mental models and auditory graph geometry](10-spatial-mental-models-and-graph-geometry.md): research evidence, stable auditory maps, hypotheses, and staged evaluation.
+12. [References](references.md): cited papers, standards and official APIs with links.
 
 ## Terminology
 
