@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { LabNodeStimulus, LabEdgeStimulus } from '../../domain/lab/types.js';
+  import { calculateEdgePath, type Point } from './geometry.js';
 
   interface Props {
     nodes?: readonly LabNodeStimulus[];
@@ -7,6 +8,7 @@
     decorativeNote?: string;
     width?: number;
     height?: number;
+    blinded?: boolean;
   }
 
   let {
@@ -14,16 +16,23 @@
     edges = [],
     decorativeNote,
     width = 300,
-    height = 160
+    height = 160,
+    blinded = false
   }: Props = $props();
 
-  const accessibleDescription = $derived(generateDescription(nodes, edges, decorativeNote));
+  const accessibleDescription = $derived(generateDescription(nodes, edges, decorativeNote, blinded));
 
   function generateDescription(
     nList: readonly LabNodeStimulus[],
     eList: readonly LabEdgeStimulus[],
-    note?: string
+    note?: string,
+    isBlinded?: boolean
   ): string {
+    if (isBlinded) {
+      const nodeDescs = nList.map((n) => `Node ${n.label}`).join(', ');
+      return `Assessment Diagram with ${nList.length} node${nList.length === 1 ? '' : 's'}: ${nodeDescs}. Visual shapes blinded during listening test.`;
+    }
+
     const nodeDescs = nList
       .map((n) => `Node ${n.label} (${n.shape} shape)`)
       .join(', ');
@@ -42,7 +51,7 @@
     return full;
   }
 
-  function getNodeCoordinates(node: LabNodeStimulus, idx: number, total: number) {
+  function getNodeCoordinates(node: LabNodeStimulus, idx: number, total: number): Point {
     if (node.x !== undefined && node.y !== undefined) {
       return { x: node.x, y: node.y };
     }
@@ -50,41 +59,25 @@
     const spacing = width / (total + 1);
     return { x: spacing * (idx + 1), y: height / 2 };
   }
-
-  function getPathData(
-    srcCoords: { x: number; y: number },
-    tgtCoords: { x: number; y: number },
-    variation?: 'straight' | 'curved' | 'step'
-  ): string {
-    const { x: x1, y: y1 } = srcCoords;
-    const { x: x2, y: y2 } = tgtCoords;
-
-    if (variation === 'curved') {
-      const midX = (x1 + x2) / 2;
-      const midY = Math.min(y1, y2) - 35;
-      return `M ${x1} ${y1} Q ${midX} ${midY} ${x2} ${y2}`;
-    }
-
-    if (variation === 'step') {
-      const midX = (x1 + x2) / 2;
-      return `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`;
-    }
-
-    // Default straight
-    return `M ${x1} ${y1} L ${x2} ${y2}`;
-  }
 </script>
 
 <div class="visual-renderer-card" role="region" aria-label="Visual Graph Diagram Canvas">
+  {#if blinded}
+    <div class="blinded-overlay-banner" role="status">
+      <span>👁️ <strong>Assessment Mode:</strong> Visual shape cues blinded during listening evaluation. Shapes will be revealed after response submission.</span>
+    </div>
+  {/if}
+
   <svg
     {width}
     {height}
     viewBox={`0 0 ${width} ${height}`}
     class="graph-svg"
+    class:blinded-svg={blinded}
     role="img"
     aria-label={accessibleDescription}
   >
-    <title>Visual Graph Stimulus</title>
+    <title>{blinded ? 'Blinded Auditory Stimulus Graph' : 'Visual Graph Stimulus'}</title>
     <desc>{accessibleDescription}</desc>
 
     <defs>
@@ -100,14 +93,24 @@
       </marker>
     </defs>
 
-    <!-- Edges -->
+    <!-- Boundary-aware Edges -->
     {#each edges as edge}
       {@const srcIdx = nodes.findIndex((n) => n.id === edge.source)}
       {@const tgtIdx = nodes.findIndex((n) => n.id === edge.target)}
       {#if srcIdx !== -1 && tgtIdx !== -1}
-        {@const srcCoords = getNodeCoordinates(nodes[srcIdx], srcIdx, nodes.length)}
-        {@const tgtCoords = getNodeCoordinates(nodes[tgtIdx], tgtIdx, nodes.length)}
-        {@const pathD = getPathData(srcCoords, tgtCoords, edge.geometryVariation)}
+        {@const srcNode = nodes[srcIdx]}
+        {@const tgtNode = nodes[tgtIdx]}
+        {@const srcCoords = getNodeCoordinates(srcNode, srcIdx, nodes.length)}
+        {@const tgtCoords = getNodeCoordinates(tgtNode, tgtIdx, nodes.length)}
+        {@const isSelfLoop = edge.source === edge.target}
+        {@const pathD = calculateEdgePath(
+          blinded ? 'circle' : srcNode.shape,
+          srcCoords,
+          blinded ? 'circle' : tgtNode.shape,
+          tgtCoords,
+          edge.geometryVariation,
+          isSelfLoop
+        )}
         <path
           d={pathD}
           class="edge-path"
@@ -118,11 +121,17 @@
       {/if}
     {/each}
 
-    <!-- Nodes -->
+    <!-- Nodes with boundary shapes -->
     {#each nodes as node, idx}
       {@const coords = getNodeCoordinates(node, idx, nodes.length)}
       <g class="node-group" transform={`translate(${coords.x}, ${coords.y})`}>
-        {#if node.shape === 'circle'}
+        {#if blinded}
+          <!-- In blinded assessment mode, render neutral circle placeholder so visual shape is not revealed -->
+          <circle
+            r="22"
+            class="node-shape neutral-blinded"
+          />
+        {:else if node.shape === 'circle'}
           <circle
             r="24"
             class="node-shape circle"
@@ -153,7 +162,7 @@
     {/each}
   </svg>
 
-  {#if decorativeNote}
+  {#if decorativeNote && !blinded}
     <div class="decorative-caption">
       <span class="caption-label">Rendering Note:</span> {decorativeNote}
     </div>
@@ -162,72 +171,94 @@
 
 <style>
   .visual-renderer-card {
-    background-color: #0b1120;
-    border: 1px solid var(--color-border);
+    background: #0f172a;
+    border: 1px solid #334155;
     border-radius: 8px;
-    padding: 16px;
+    padding: 12px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    margin: 12px 0;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .blinded-overlay-banner {
+    background: rgba(30, 41, 59, 0.85);
+    border: 1px dashed #64748b;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    color: #94a3b8;
+    text-align: center;
+    width: 100%;
   }
 
   .graph-svg {
-    max-width: 100%;
-    overflow: visible;
-  }
-
-  .node-shape {
-    fill: #1e293b;
-    stroke: var(--color-primary);
-    stroke-width: 2.5px;
-    transition: all 0.2s ease;
-  }
-
-  .node-shape.circle {
-    stroke: #38bdf8; /* Cyan */
-  }
-
-  .node-shape.rectangle {
-    stroke: #fbbf24; /* Amber */
-  }
-
-  .node-shape.diamond {
-    stroke: #a78bfa; /* Violet */
-  }
-
-  .node-text {
-    fill: #f8fafc;
-    font-size: 13px;
-    font-weight: 600;
-    pointer-events: none;
-    user-select: none;
+    background: #020617;
+    border-radius: 6px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
   }
 
   .edge-path {
     fill: none;
     stroke: #38bdf8;
-    stroke-width: 2.5px;
+    stroke-width: 2.5;
+    stroke-linecap: round;
   }
 
   .edge-path.curved {
-    stroke-dasharray: 4, 2;
-    stroke: #0ea5e9;
+    stroke: #818cf8;
   }
 
   .edge-path.step {
-    stroke: #0ea5e9;
+    stroke: #34d399;
+  }
+
+  .node-shape {
+    stroke-width: 2.5;
+  }
+
+  .node-shape.circle {
+    fill: #1e293b;
+    stroke: #38bdf8;
+  }
+
+  .node-shape.rectangle {
+    fill: #1e293b;
+    stroke: #fbbf24;
+  }
+
+  .node-shape.diamond {
+    fill: #1e293b;
+    stroke: #f43f5e;
+  }
+
+  .node-shape.neutral-blinded {
+    fill: #1e293b;
+    stroke: #64748b;
+    stroke-dasharray: 3 3;
+  }
+
+  .node-text {
+    fill: #f8fafc;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: inherit;
+    pointer-events: none;
+    user-select: none;
   }
 
   .decorative-caption {
-    margin-top: 8px;
     font-size: 12px;
-    color: var(--color-text-muted);
+    color: #94a3b8;
+    background: #1e293b;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid #334155;
   }
 
   .caption-label {
+    color: #38bdf8;
     font-weight: 600;
-    color: var(--color-text);
   }
 </style>

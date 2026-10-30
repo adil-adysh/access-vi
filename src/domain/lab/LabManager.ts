@@ -2,7 +2,8 @@ import type {
   LabTestCase,
   LabTestRecord,
   LabSessionSummary,
-  LabTestCategory
+  LabTestCategory,
+  LabMode
 } from './types.js';
 import { LAB_TEST_CASES } from './fixtures.js';
 import type { ParitySonificationEngine } from '../../audio/parity/ParitySonificationEngine.js';
@@ -21,6 +22,7 @@ export class LabManager {
   private readonly audioEngine?: ParitySonificationEngine;
   private currentTestIndex: number = 0;
   private selectedCategory: LabTestCategory | 'all' = 'all';
+  private mode: LabMode = 'training';
 
   private activeTestStartTime: number = 0;
   private currentReplayCount: number = 0;
@@ -30,10 +32,12 @@ export class LabManager {
 
   constructor(
     testCases: readonly LabTestCase[] = LAB_TEST_CASES,
-    audioEngine?: ParitySonificationEngine
+    audioEngine?: ParitySonificationEngine,
+    initialMode: LabMode = 'training'
   ) {
     this.testCases = testCases;
     this.audioEngine = audioEngine;
+    this.mode = initialMode;
     this.startActiveTestTiming();
   }
 
@@ -49,6 +53,17 @@ export class LabManager {
       } catch (err) {
         console.error('Error in LabStateListener:', err);
       }
+    }
+  }
+
+  public getMode(): LabMode {
+    return this.mode;
+  }
+
+  public setMode(mode: LabMode): void {
+    if (this.mode !== mode) {
+      this.mode = mode;
+      this.notify();
     }
   }
 
@@ -187,10 +202,10 @@ export class LabManager {
   }
 
   /**
-   * Submits a participant response for the active test case.
+   * Submits a participant response for the active test case using stable answer IDs.
    */
   public submitResponse(
-    participantResponse: string,
+    responseId: string,
     perceivedMeaning?: string,
     qualitativeFeedback?: string
   ): LabTestRecord {
@@ -202,16 +217,24 @@ export class LabManager {
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const durationMs = Math.round(Math.max(0, now - this.activeTestStartTime));
 
+    const option = tc.options.find((o) => o.id === responseId);
+    const participantResponseId = responseId;
+    const participantResponseLabel = option ? option.label : responseId;
+
     const isCorrect =
-      tc.expectedAnswer !== undefined ? participantResponse === tc.expectedAnswer : null;
+      tc.expectedAnswerId !== undefined
+        ? participantResponseId === tc.expectedAnswerId
+        : null;
 
     const record: LabTestRecord = {
       mappingVersion: this.audioEngine?.getRegistry().getVersion() ?? 'visual-auditory-parity-v1',
       testCaseId: tc.id,
       category: tc.category,
+      mode: this.mode,
       prompt: tc.prompt,
-      expectedAnswer: tc.expectedAnswer,
-      participantResponse,
+      expectedAnswerId: tc.expectedAnswerId,
+      participantResponseId,
+      participantResponseLabel,
       isCorrect,
       replayCount: this.currentReplayCount,
       responseDurationMs: durationMs,
@@ -263,6 +286,7 @@ export class LabManager {
     const payload = {
       exportedAt: new Date().toISOString(),
       mappingVersion: this.audioEngine?.getRegistry().getVersion() ?? 'visual-auditory-parity-v1',
+      mode: this.mode,
       summary: this.getSessionSummary(),
       records: this.records
     };
@@ -273,10 +297,12 @@ export class LabManager {
     const headers = [
       'timestamp',
       'mappingVersion',
+      'mode',
       'testCaseId',
       'category',
-      'expectedAnswer',
-      'participantResponse',
+      'expectedAnswerId',
+      'participantResponseId',
+      'participantResponseLabel',
       'isCorrect',
       'replayCount',
       'responseDurationMs',
@@ -293,10 +319,12 @@ export class LabManager {
     const rows = this.records.map((r) => [
       escapeCSV(r.timestamp),
       escapeCSV(r.mappingVersion),
+      escapeCSV(r.mode),
       escapeCSV(r.testCaseId),
       escapeCSV(r.category),
-      escapeCSV(r.expectedAnswer),
-      escapeCSV(r.participantResponse),
+      escapeCSV(r.expectedAnswerId),
+      escapeCSV(r.participantResponseId),
+      escapeCSV(r.participantResponseLabel),
       escapeCSV(r.isCorrect === null ? 'N/A' : r.isCorrect ? 'TRUE' : 'FALSE'),
       escapeCSV(r.replayCount),
       escapeCSV(r.responseDurationMs),

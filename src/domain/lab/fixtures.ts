@@ -2,17 +2,20 @@ import type { LabTestCase } from './types.js';
 
 export const LAB_TEST_CASES: readonly LabTestCase[] = [
   // ----------------------------------------------------
-  // Capability A: Individual Shape Testing & Discrimination
+  // Capability A: Shape Category Discrimination
   // ----------------------------------------------------
   {
     id: 'shape-discrim-01',
     category: 'shape_discrimination',
     title: 'Shape Discrimination: Trial 1',
     instructions:
-      'Listen to Sound 1 and Sound 2 using the Play buttons. Determine whether both sounds represent the same visual shape category or different shape categories.',
+      'Listen to Sound 1 and Sound 2 using the playback buttons. Determine whether both sounds represent the same visual shape category or different shape categories.',
     prompt: 'Do Sound 1 and Sound 2 represent the same shape category or different shape categories?',
-    options: ['Same shape category', 'Different shape categories'],
-    expectedAnswer: 'Same shape category',
+    options: [
+      { id: 'same_category', label: 'Same shape category' },
+      { id: 'different_category', label: 'Different shape categories' }
+    ],
+    expectedAnswerId: 'same_category',
     soundStimulus: {
       type: 'compare_shapes',
       shape1: 'circle',
@@ -20,10 +23,11 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
     },
     visualStimulus: {
       nodes: [
-        { id: '1', label: 'Shape 1', shape: 'circle', x: 80, y: 80 },
-        { id: '2', label: 'Shape 2', shape: 'circle', x: 200, y: 80 }
+        { id: '1', label: '1', shape: 'circle', x: 80, y: 80 },
+        { id: '2', label: '2', shape: 'circle', x: 200, y: 80 }
       ],
-      edges: []
+      edges: [],
+      blindInAssessment: true
     },
     supportsPerceivedMeaning: true
   },
@@ -34,8 +38,11 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
     instructions:
       'Listen to Sound 1 and Sound 2. Determine whether they represent the same shape category or different shape categories.',
     prompt: 'Do Sound 1 and Sound 2 represent the same shape category or different shape categories?',
-    options: ['Same shape category', 'Different shape categories'],
-    expectedAnswer: 'Different shape categories',
+    options: [
+      { id: 'same_category', label: 'Same shape category' },
+      { id: 'different_category', label: 'Different shape categories' }
+    ],
+    expectedAnswerId: 'different_category',
     soundStimulus: {
       type: 'compare_shapes',
       shape1: 'circle',
@@ -43,10 +50,11 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
     },
     visualStimulus: {
       nodes: [
-        { id: '1', label: 'Shape 1', shape: 'circle', x: 80, y: 80 },
-        { id: '2', label: 'Shape 2', shape: 'rectangle', x: 200, y: 80 }
+        { id: '1', label: '1', shape: 'circle', x: 80, y: 80 },
+        { id: '2', label: '2', shape: 'rectangle', x: 200, y: 80 }
       ],
-      edges: []
+      edges: [],
+      blindInAssessment: true
     },
     supportsPerceivedMeaning: true
   },
@@ -57,8 +65,11 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
     instructions:
       'Listen to Sound 1 and Sound 2. Determine whether they represent the same shape category or different shape categories.',
     prompt: 'Do Sound 1 and Sound 2 represent the same shape category or different shape categories?',
-    options: ['Same shape category', 'Different shape categories'],
-    expectedAnswer: 'Different shape categories',
+    options: [
+      { id: 'same_category', label: 'Same shape category' },
+      { id: 'different_category', label: 'Different shape categories' }
+    ],
+    expectedAnswerId: 'different_category',
     soundStimulus: {
       type: 'compare_shapes',
       shape1: 'rectangle',
@@ -66,10 +77,11 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
     },
     visualStimulus: {
       nodes: [
-        { id: '1', label: 'Shape 1', shape: 'rectangle', x: 80, y: 80 },
-        { id: '2', label: 'Shape 2', shape: 'diamond', x: 200, y: 80 }
+        { id: '1', label: '1', shape: 'rectangle', x: 80, y: 80 },
+        { id: '2', label: '2', shape: 'diamond', x: 200, y: 80 }
       ],
-      edges: []
+      edges: [],
+      blindInAssessment: true
     },
     supportsPerceivedMeaning: true
   },
@@ -80,8 +92,11 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
     instructions:
       'Listen to Sound 1 and Sound 2. Determine whether they represent the same shape category or different shape categories.',
     prompt: 'Do Sound 1 and Sound 2 represent the same shape category or different shape categories?',
-    options: ['Same shape category', 'Different shape categories'],
-    expectedAnswer: 'Same shape category',
+    options: [
+      { id: 'same_category', label: 'Same shape category' },
+      { id: 'different_category', label: 'Different shape categories' }
+    ],
+    expectedAnswerId: 'same_category',
     soundStimulus: {
       type: 'compare_shapes',
       shape1: 'diamond',
@@ -89,32 +104,172 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
     },
     visualStimulus: {
       nodes: [
-        { id: '1', label: 'Shape 1', shape: 'diamond', x: 80, y: 80 },
-        { id: '2', label: 'Shape 2', shape: 'diamond', x: 200, y: 80 }
+        { id: '1', label: '1', shape: 'diamond', x: 80, y: 80 },
+        { id: '2', label: '2', shape: 'diamond', x: 200, y: 80 }
       ],
-      edges: []
+      edges: [],
+      blindInAssessment: true
+    },
+    supportsPerceivedMeaning: true
+  },
+  {
+    id: 'shape-discrim-05',
+    category: 'shape_discrimination',
+    title: 'Shape Discrimination: Trial 5',
+    instructions:
+      'Listen to Sound 1 and Sound 2. Determine whether they represent the same shape category or different shape categories.',
+    prompt: 'Do Sound 1 and Sound 2 represent the same shape category or different shape categories?',
+    options: [
+      { id: 'same_category', label: 'Same shape category' },
+      { id: 'different_category', label: 'Different shape categories' }
+    ],
+    expectedAnswerId: 'same_category',
+    soundStimulus: {
+      type: 'compare_shapes',
+      shape1: 'rectangle',
+      shape2: 'rectangle'
+    },
+    visualStimulus: {
+      nodes: [
+        { id: '1', label: '1', shape: 'rectangle', x: 80, y: 80 },
+        { id: '2', label: '2', shape: 'rectangle', x: 200, y: 80 }
+      ],
+      edges: [],
+      blindInAssessment: true
+    },
+    supportsPerceivedMeaning: true
+  },
+  {
+    id: 'shape-discrim-06',
+    category: 'shape_discrimination',
+    title: 'Shape Discrimination: Trial 6',
+    instructions:
+      'Listen to Sound 1 and Sound 2. Determine whether they represent the same shape category or different shape categories.',
+    prompt: 'Do Sound 1 and Sound 2 represent the same shape category or different shape categories?',
+    options: [
+      { id: 'same_category', label: 'Same shape category' },
+      { id: 'different_category', label: 'Different shape categories' }
+    ],
+    expectedAnswerId: 'different_category',
+    soundStimulus: {
+      type: 'compare_shapes',
+      shape1: 'circle',
+      shape2: 'diamond'
+    },
+    visualStimulus: {
+      nodes: [
+        { id: '1', label: '1', shape: 'circle', x: 80, y: 80 },
+        { id: '2', label: '2', shape: 'diamond', x: 200, y: 80 }
+      ],
+      edges: [],
+      blindInAssessment: true
     },
     supportsPerceivedMeaning: true
   },
 
   // ----------------------------------------------------
-  // Capability B: Identity vs Category Testing
+  // Capability B: Shape Category Recognition
+  // ----------------------------------------------------
+  {
+    id: 'shape-recog-01',
+    category: 'shape_recognition',
+    title: 'Shape Recognition: Trial 1',
+    instructions:
+      'Listen to the test sound. Based on the candidate shape timbres learned in training, identify which visual shape category this sound represents.',
+    prompt: 'Which visual shape category does this sound represent?',
+    options: [
+      { id: 'circle_shape', label: 'Circle (pure sine wave)' },
+      { id: 'rectangle_shape', label: 'Rectangle (triangle wave)' },
+      { id: 'diamond_shape', label: 'Diamond (softened square wave)' }
+    ],
+    expectedAnswerId: 'circle_shape',
+    soundStimulus: {
+      type: 'single_shape',
+      shape1: 'circle'
+    },
+    visualStimulus: {
+      nodes: [{ id: '1', label: '1', shape: 'circle', x: 140, y: 80 }],
+      edges: [],
+      blindInAssessment: true
+    },
+    supportsPerceivedMeaning: true
+  },
+  {
+    id: 'shape-recog-02',
+    category: 'shape_recognition',
+    title: 'Shape Recognition: Trial 2',
+    instructions:
+      'Listen to the test sound and identify which visual shape category it represents.',
+    prompt: 'Which visual shape category does this sound represent?',
+    options: [
+      { id: 'circle_shape', label: 'Circle (pure sine wave)' },
+      { id: 'rectangle_shape', label: 'Rectangle (triangle wave)' },
+      { id: 'diamond_shape', label: 'Diamond (softened square wave)' }
+    ],
+    expectedAnswerId: 'rectangle_shape',
+    soundStimulus: {
+      type: 'single_shape',
+      shape1: 'rectangle'
+    },
+    visualStimulus: {
+      nodes: [{ id: '1', label: '1', shape: 'rectangle', x: 140, y: 80 }],
+      edges: [],
+      blindInAssessment: true
+    },
+    supportsPerceivedMeaning: true
+  },
+  {
+    id: 'shape-recog-03',
+    category: 'shape_recognition',
+    title: 'Shape Recognition: Trial 3',
+    instructions:
+      'Listen to the test sound and identify which visual shape category it represents.',
+    prompt: 'Which visual shape category does this sound represent?',
+    options: [
+      { id: 'circle_shape', label: 'Circle (pure sine wave)' },
+      { id: 'rectangle_shape', label: 'Rectangle (triangle wave)' },
+      { id: 'diamond_shape', label: 'Diamond (softened square wave)' }
+    ],
+    expectedAnswerId: 'diamond_shape',
+    soundStimulus: {
+      type: 'single_shape',
+      shape1: 'diamond'
+    },
+    visualStimulus: {
+      nodes: [{ id: '1', label: '1', shape: 'diamond', x: 140, y: 80 }],
+      edges: [],
+      blindInAssessment: true
+    },
+    supportsPerceivedMeaning: true
+  },
+
+  // ----------------------------------------------------
+  // Capability C: Identity vs Category Testing
   // ----------------------------------------------------
   {
     id: 'identity-cat-01',
     category: 'identity_vs_category',
-    title: 'Identity vs Category: Circle A and Circle B',
+    title: 'Identity vs Category: Node A and Node B',
     instructions:
-      'Node A is labeled "User Accounts" and Node B is labeled "Billing Service". Both visually appear as circles. Listen to both node sounds and review their accessible labels.',
+      'Listen to Sound 1 (Node A: "User Accounts") and Sound 2 (Node B: "Billing Service"). Both nodes visually appear as circles.',
     prompt:
-      'Given that Node A and Node B produce the same intrinsic sound, what does this sound convey according to visual-auditory parity?',
+      'Given that Node A and Node B produce the same intrinsic sound, what does this acoustic match convey under visual-auditory parity?',
     options: [
-      'Both nodes belong to the same visual shape category (Circle), but remain distinct entities identified by their labels',
-      'Both nodes are the exact same entity in the graph',
-      'The graph has a cyclic loop between A and B'
+      {
+        id: 'same_category_distinct_entities',
+        label:
+          'Both nodes belong to the same visual shape category (Circle), but remain distinct entities with independent labels'
+      },
+      {
+        id: 'exact_same_entity',
+        label: 'Both nodes are the exact same entity in the graph'
+      },
+      {
+        id: 'cyclic_connection',
+        label: 'A cyclic link exists between Node A and Node B'
+      }
     ],
-    expectedAnswer:
-      'Both nodes belong to the same visual shape category (Circle), but remain distinct entities identified by their labels',
+    expectedAnswerId: 'same_category_distinct_entities',
     soundStimulus: {
       type: 'compare_shapes',
       shape1: 'circle',
@@ -132,17 +287,26 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
   {
     id: 'identity-cat-02',
     category: 'identity_vs_category',
-    title: 'Identity vs Category: Circle A and Rectangle B',
+    title: 'Identity vs Category: Server Alpha and Database Omega',
     instructions:
-      'Node A is labeled "Server Alpha" (Circle) and Node B is labeled "Database Omega" (Rectangle). Listen to both sounds.',
-    prompt: 'What does the difference between Sound A and Sound B convey?',
+      'Listen to Sound A (Node A: "Server Alpha", Circle) and Sound B (Node B: "Database Omega", Rectangle).',
+    prompt: 'What does the acoustic difference between Sound A and Sound B convey?',
     options: [
-      'Different visual shape categories (Circle vs Rectangle) for two distinct node entities',
-      'Node B has higher priority or rank than Node A',
-      'Node A connects to Node B'
+      {
+        id: 'different_categories',
+        label:
+          'Different visual shape categories (Circle vs Rectangle) for two distinct node entities'
+      },
+      {
+        id: 'higher_priority',
+        label: 'Node B has higher priority or rank than Node A'
+      },
+      {
+        id: 'direct_connection',
+        label: 'Node A directly connects to Node B'
+      }
     ],
-    expectedAnswer:
-      'Different visual shape categories (Circle vs Rectangle) for two distinct node entities',
+    expectedAnswerId: 'different_categories',
     soundStimulus: {
       type: 'compare_shapes',
       shape1: 'circle',
@@ -160,17 +324,26 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
   {
     id: 'identity-cat-03',
     category: 'identity_vs_category',
-    title: 'Identity vs Category: Rectangle B and Rectangle C',
+    title: 'Identity vs Category: Cache Cluster and Analytics Engine',
     instructions:
-      'Node B is labeled "Cache Cluster" and Node C is labeled "Analytics Engine", both rectangles. Listen to both sounds.',
+      'Node B is "Cache Cluster" and Node C is "Analytics Engine", both rectangles. Listen to both sounds.',
     prompt: 'What does the acoustic match between B and C indicate?',
     options: [
-      'Same visual shape category (Rectangle) with independent node identities identified by their screen-reader labels',
-      'Node B and Node C are identical nodes with identical connections',
-      'A bidirectional edge exists between B and C'
+      {
+        id: 'same_category_distinct_entities',
+        label:
+          'Same visual shape category (Rectangle) with independent node identities identified by their screen-reader labels'
+      },
+      {
+        id: 'exact_same_entity',
+        label: 'Node B and Node C are identical nodes with identical connections'
+      },
+      {
+        id: 'bidirectional_edge',
+        label: 'A bidirectional edge exists between B and C'
+      }
     ],
-    expectedAnswer:
-      'Same visual shape category (Rectangle) with independent node identities identified by their screen-reader labels',
+    expectedAnswerId: 'same_category_distinct_entities',
     soundStimulus: {
       type: 'compare_shapes',
       shape1: 'rectangle',
@@ -187,21 +360,110 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
   },
 
   // ----------------------------------------------------
-  // Capability C: Relationship & Direction Testing
+  // Capability D: Perceived Hierarchy Testing
+  // ----------------------------------------------------
+  {
+    id: 'perceived-hier-01',
+    category: 'perceived_hierarchy',
+    title: 'Perceived Hierarchy: Circle vs Rectangle',
+    instructions:
+      'Listen to Sound 1 (Circle) and Sound 2 (Rectangle). Both are played at 300 Hz carrier frequency.',
+    prompt:
+      'Comparing Sound 1 and Sound 2, does either sound feel more important, dominant, or higher in status, or do they feel like neutral peers?',
+    options: [
+      {
+        id: 'neutral_peers',
+        label: 'Perceptually neutral peers (neither implies higher status or priority)'
+      },
+      {
+        id: 'sound1_dominant',
+        label: 'Sound 1 feels higher, more important, or higher priority'
+      },
+      {
+        id: 'sound2_dominant',
+        label: 'Sound 2 feels higher, more important, or higher priority'
+      }
+    ],
+    expectedAnswerId: 'neutral_peers',
+    soundStimulus: {
+      type: 'compare_shapes',
+      shape1: 'circle',
+      shape2: 'rectangle'
+    },
+    visualStimulus: {
+      nodes: [
+        { id: '1', label: '1', shape: 'circle', x: 80, y: 80 },
+        { id: '2', label: '2', shape: 'rectangle', x: 200, y: 80 }
+      ],
+      edges: [],
+      blindInAssessment: true
+    },
+    supportsPerceivedMeaning: true
+  },
+  {
+    id: 'perceived-hier-02',
+    category: 'perceived_hierarchy',
+    title: 'Perceived Hierarchy: Circle vs Diamond',
+    instructions:
+      'Listen to Sound 1 (Circle) and Sound 2 (Diamond softened square wave at 300 Hz).',
+    prompt:
+      'Comparing Sound 1 and Sound 2, does either sound convey an unintended hierarchical rank?',
+    options: [
+      {
+        id: 'neutral_peers',
+        label: 'Perceptually neutral peers (different categories without rank)'
+      },
+      {
+        id: 'sound1_dominant',
+        label: 'Sound 1 feels dominant or higher rank'
+      },
+      {
+        id: 'sound2_dominant',
+        label: 'Sound 2 feels dominant or higher rank'
+      }
+    ],
+    expectedAnswerId: 'neutral_peers',
+    soundStimulus: {
+      type: 'compare_shapes',
+      shape1: 'circle',
+      shape2: 'diamond'
+    },
+    visualStimulus: {
+      nodes: [
+        { id: '1', label: '1', shape: 'circle', x: 80, y: 80 },
+        { id: '2', label: '2', shape: 'diamond', x: 200, y: 80 }
+      ],
+      edges: [],
+      blindInAssessment: true
+    },
+    supportsPerceivedMeaning: true
+  },
+
+  // ----------------------------------------------------
+  // Capability E: Relationship & Direction Testing
   // ----------------------------------------------------
   {
     id: 'rel-dir-01',
     category: 'relationship_direction',
-    title: 'Directed Relationship: A → B',
+    title: 'Relationship Direction: Outgoing Connection',
     instructions:
-      'Listen to the relationship sound journey from Node A (Circle) to Node B (Circle). Focus on the direction cue between the two shape sounds.',
-    prompt: 'Which directed connection is communicated by this sound pattern?',
+      'Listen to the relationship direction cue between two nodes. Focus on the interval between tones.',
+    prompt: 'Based on the direction audio cue, which connection direction is being communicated?',
     options: [
-      'Outgoing connection from A to B (A → B)',
-      'Incoming connection from B into A (B → A)',
-      'Undirected bidirectional link'
+      {
+        id: 'outgoing',
+        label: 'Outgoing connection (departing from current node)'
+      },
+      {
+        id: 'incoming',
+        label: 'Incoming connection (entering into current node)'
+      },
+      {
+        id: 'bidirectional',
+        label: 'Bidirectional link'
+      }
     ],
-    expectedAnswer: 'Outgoing connection from A to B (A → B)',
+    expectedAnswerId: 'outgoing',
     soundStimulus: {
       type: 'edge_journey',
       shape1: 'circle',
@@ -215,23 +477,33 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
       ],
       edges: [
         { id: 'e1', source: 'A', target: 'B', direction: 'outgoing', geometryVariation: 'straight' }
-      ]
+      ],
+      blindInAssessment: true
     },
     supportsPerceivedMeaning: true
   },
   {
     id: 'rel-dir-02',
     category: 'relationship_direction',
-    title: 'Directed Relationship: B → A',
+    title: 'Relationship Direction: Incoming Connection',
     instructions:
-      'Listen to the relationship sound journey for the reverse direction. Notice the inverted interval in the direction cue.',
-    prompt: 'Which directed connection is communicated by this sound pattern?',
+      'Listen to the relationship sound journey for the reverse direction. Notice the inverted interval.',
+    prompt: 'Based on the direction audio cue, which connection direction is being communicated?',
     options: [
-      'Incoming connection from B into A (B → A)',
-      'Outgoing connection from A to B (A → B)',
-      'No relationship'
+      {
+        id: 'incoming',
+        label: 'Incoming connection (entering into current node)'
+      },
+      {
+        id: 'outgoing',
+        label: 'Outgoing connection (departing from current node)'
+      },
+      {
+        id: 'bidirectional',
+        label: 'Bidirectional link'
+      }
     ],
-    expectedAnswer: 'Incoming connection from B into A (B → A)',
+    expectedAnswerId: 'incoming',
     soundStimulus: {
       type: 'edge_journey',
       shape1: 'circle',
@@ -245,45 +517,14 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
       ],
       edges: [
         { id: 'e2', source: 'B', target: 'A', direction: 'incoming', geometryVariation: 'straight' }
-      ]
+      ],
+      blindInAssessment: true
     },
     supportsPerceivedMeaning: true
   },
-  {
-    id: 'rel-dir-03',
-    category: 'relationship_direction',
-    title: 'Relationship Topology: Branching vs Convergence',
-    instructions:
-      'In a graph, Node A has outgoing connections to both Node B and Node C (A → B and A → C).',
-    prompt:
-      'Under Visual-Auditory Parity, how are endpoints B and C identified without assigning different musical pitches to their IDs?',
-    options: [
-      'Through NVDA screen-reader textual labels and semantic focus, while audio indicates identical outgoing directionality',
-      'By giving Node B a high musical pitch and Node C a low musical pitch',
-      'By synthesizing speech through Web Speech API over the sound'
-    ],
-    expectedAnswer:
-      'Through NVDA screen-reader textual labels and semantic focus, while audio indicates identical outgoing directionality',
-    soundStimulus: {
-      type: 'direction_only',
-      direction: 'outgoing'
-    },
-    visualStimulus: {
-      nodes: [
-        { id: 'A', label: 'A', shape: 'circle', x: 60, y: 80 },
-        { id: 'B', label: 'B', shape: 'circle', x: 180, y: 40 },
-        { id: 'C', label: 'C', shape: 'circle', x: 180, y: 120 }
-      ],
-      edges: [
-        { id: 'e1', source: 'A', target: 'B', direction: 'outgoing', geometryVariation: 'straight' },
-        { id: 'e2', source: 'A', target: 'C', direction: 'outgoing', geometryVariation: 'straight' }
-      ]
-    },
-    supportsPerceivedMeaning: false
-  },
 
   // ----------------------------------------------------
-  // Capability D: Shape Independence Testing
+  // Capability F: Shape Independence Testing
   // ----------------------------------------------------
   {
     id: 'shape-indep-01',
@@ -294,12 +535,21 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
     prompt:
       'When target Node B changes its visual shape from Circle to Rectangle, what happens to the directed relationship cue between A and B?',
     options: [
-      'The directed relationship cue remains completely unchanged; only B\'s intrinsic category sound changes',
-      'The directed relationship cue changes its direction and pitch',
-      'The relationship is replaced by a warning tone'
+      {
+        id: 'unchanged_relationship',
+        label:
+          "The directed relationship cue remains completely unchanged; only B's intrinsic category sound changes"
+      },
+      {
+        id: 'direction_inverted',
+        label: 'The directed relationship cue changes its direction and pitch'
+      },
+      {
+        id: 'warning_replaced',
+        label: 'The relationship is replaced by a warning tone'
+      }
     ],
-    expectedAnswer:
-      'The directed relationship cue remains completely unchanged; only B\'s intrinsic shape cue changes',
+    expectedAnswerId: 'unchanged_relationship',
     soundStimulus: {
       type: 'edge_journey',
       shape1: 'circle',
@@ -308,8 +558,8 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
     },
     visualStimulus: {
       nodes: [
-        { id: 'A', label: 'A (Circle)', shape: 'circle', x: 70, y: 80 },
-        { id: 'B', label: 'B (Rectangle)', shape: 'rectangle', x: 210, y: 80 }
+        { id: 'A', label: 'A', shape: 'circle', x: 70, y: 80 },
+        { id: 'B', label: 'B', shape: 'rectangle', x: 210, y: 80 }
       ],
       edges: [
         { id: 'e1', source: 'A', target: 'B', direction: 'outgoing', geometryVariation: 'straight' }
@@ -326,12 +576,20 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
     prompt:
       'Does changing the target node shape alter the acoustic definition of an outgoing connection?',
     options: [
-      'No, node shape and connection properties remain strictly orthogonal and independent',
-      'Yes, the connection becomes an incoming connection',
-      'Yes, the connection duration doubles'
+      {
+        id: 'orthogonal_independent',
+        label: 'No, node shape and connection properties remain strictly orthogonal and independent'
+      },
+      {
+        id: 'connection_inverted',
+        label: 'Yes, the connection becomes an incoming connection'
+      },
+      {
+        id: 'duration_doubled',
+        label: 'Yes, the connection duration doubles'
+      }
     ],
-    expectedAnswer:
-      'No, node shape and connection properties remain strictly orthogonal and independent',
+    expectedAnswerId: 'orthogonal_independent',
     soundStimulus: {
       type: 'edge_journey',
       shape1: 'circle',
@@ -340,8 +598,8 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
     },
     visualStimulus: {
       nodes: [
-        { id: 'A', label: 'A (Circle)', shape: 'circle', x: 70, y: 80 },
-        { id: 'B', label: 'B (Diamond)', shape: 'diamond', x: 210, y: 80 }
+        { id: 'A', label: 'A', shape: 'circle', x: 70, y: 80 },
+        { id: 'B', label: 'B', shape: 'diamond', x: 210, y: 80 }
       ],
       edges: [
         { id: 'e1', source: 'A', target: 'B', direction: 'outgoing', geometryVariation: 'straight' }
@@ -351,7 +609,7 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
   },
 
   // ----------------------------------------------------
-  // Capability E: Geometry Invariance Testing
+  // Capability G: Geometry Invariance Testing
   // ----------------------------------------------------
   {
     id: 'geom-invar-01',
@@ -362,12 +620,21 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
     prompt:
       'According to Governing Rule D, how should the relationship sound change when a decorative line bend is added without semantic change?',
     options: [
-      'The sound must remain identical because decorative geometry does not alter topological semantics',
-      'The sound should introduce a curved pitch bend matching the line angle',
-      'The sound should increase in volume'
+      {
+        id: 'invariant_sound',
+        label:
+          'The sound must remain identical because decorative geometry does not alter topological semantics'
+      },
+      {
+        id: 'curved_pitch_bend',
+        label: 'The sound should introduce a curved pitch bend matching the line angle'
+      },
+      {
+        id: 'volume_increase',
+        label: 'The sound should increase in volume'
+      }
     ],
-    expectedAnswer:
-      'The sound must remain identical because decorative geometry does not alter topological semantics',
+    expectedAnswerId: 'invariant_sound',
     soundStimulus: {
       type: 'edge_journey',
       shape1: 'circle',
@@ -395,12 +662,21 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
     prompt:
       'Does the 90-degree step bend invent new auditory events or pitch changes?',
     options: [
-      'No, topological relationship cues remain invariant to drawing style and routing bends',
-      'Yes, two click sounds are added at each 90-degree corner',
-      'Yes, the step bend lowers the carrier frequency'
+      {
+        id: 'invariant_sound',
+        label:
+          'No, topological relationship cues remain invariant to drawing style and routing bends'
+      },
+      {
+        id: 'corner_clicks',
+        label: 'Yes, two click sounds are added at each 90-degree corner'
+      },
+      {
+        id: 'carrier_drop',
+        label: 'Yes, the step bend lowers the carrier frequency'
+      }
     ],
-    expectedAnswer:
-      'No, topological relationship cues remain invariant to drawing style and routing bends',
+    expectedAnswerId: 'invariant_sound',
     soundStimulus: {
       type: 'edge_journey',
       shape1: 'circle',
@@ -421,7 +697,73 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
   },
 
   // ----------------------------------------------------
-  // Capability F: Perceived-Meaning Testing
+  // Capability H: Destination Recognition
+  // ----------------------------------------------------
+  {
+    id: 'dest-recog-01',
+    category: 'destination_recognition',
+    title: 'Destination Recognition: Journey to Node B',
+    instructions:
+      'Listen to the complete connection journey departing from Node A (Circle). Based on the arrival tone, determine the visual shape of the reached destination.',
+    prompt: 'What visual shape category was reached at the destination?',
+    options: [
+      { id: 'diamond_destination', label: 'Diamond (softened square wave)' },
+      { id: 'circle_destination', label: 'Circle (pure sine wave)' },
+      { id: 'rectangle_destination', label: 'Rectangle (triangle wave)' }
+    ],
+    expectedAnswerId: 'diamond_destination',
+    soundStimulus: {
+      type: 'edge_journey',
+      shape1: 'circle',
+      shape2: 'diamond',
+      direction: 'outgoing'
+    },
+    visualStimulus: {
+      nodes: [
+        { id: 'A', label: 'A', shape: 'circle', x: 70, y: 80 },
+        { id: 'B', label: 'B', shape: 'diamond', x: 210, y: 80 }
+      ],
+      edges: [
+        { id: 'e1', source: 'A', target: 'B', direction: 'outgoing', geometryVariation: 'straight' }
+      ],
+      blindInAssessment: true
+    },
+    supportsPerceivedMeaning: true
+  },
+  {
+    id: 'dest-recog-02',
+    category: 'destination_recognition',
+    title: 'Destination Recognition: Journey to Node C',
+    instructions:
+      'Listen to the connection journey departing from Node A (Rectangle). Determine the destination shape.',
+    prompt: 'What visual shape category was reached at the destination?',
+    options: [
+      { id: 'circle_destination', label: 'Circle (pure sine wave)' },
+      { id: 'rectangle_destination', label: 'Rectangle (triangle wave)' },
+      { id: 'diamond_destination', label: 'Diamond (softened square wave)' }
+    ],
+    expectedAnswerId: 'circle_destination',
+    soundStimulus: {
+      type: 'edge_journey',
+      shape1: 'rectangle',
+      shape2: 'circle',
+      direction: 'outgoing'
+    },
+    visualStimulus: {
+      nodes: [
+        { id: 'A', label: 'A', shape: 'rectangle', x: 70, y: 80 },
+        { id: 'B', label: 'B', shape: 'circle', x: 210, y: 80 }
+      ],
+      edges: [
+        { id: 'e1', source: 'A', target: 'B', direction: 'outgoing', geometryVariation: 'straight' }
+      ],
+      blindInAssessment: true
+    },
+    supportsPerceivedMeaning: true
+  },
+
+  // ----------------------------------------------------
+  // Capability I: Perceived-Meaning Testing (Qualitative / Subjective)
   // ----------------------------------------------------
   {
     id: 'perceived-meaning-01',
@@ -431,19 +773,19 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
       'Listen to the triangle-wave tone assigned to the Rectangle shape category. Consider what immediate impressions or associations this sound creates.',
     prompt: 'What did this sound suggest to you most strongly?',
     options: [
-      'Different category / type of object',
-      'Higher importance, priority, or ranking',
-      'Direction, flow, or movement',
-      'Greater quantity, magnitude, or size',
-      'No particular meaning',
-      'Other interpretation'
+      { id: 'diff_category', label: 'Different category / type of object' },
+      { id: 'high_priority', label: 'Higher importance, priority, or ranking' },
+      { id: 'direction_flow', label: 'Direction, flow, or movement' },
+      { id: 'greater_quantity', label: 'Greater quantity, magnitude, or size' },
+      { id: 'no_meaning', label: 'No particular meaning' },
+      { id: 'other', label: 'Other interpretation' }
     ],
     soundStimulus: {
       type: 'single_shape',
       shape1: 'rectangle'
     },
     visualStimulus: {
-      nodes: [{ id: 'R', label: 'Rectangle Node', shape: 'rectangle', x: 140, y: 80 }],
+      nodes: [{ id: 'R', label: 'R', shape: 'rectangle', x: 140, y: 80 }],
       edges: []
     },
     supportsPerceivedMeaning: true
@@ -456,19 +798,19 @@ export const LAB_TEST_CASES: readonly LabTestCase[] = [
       'Listen to the softened square-wave tone assigned to the Diamond shape category. Consider whether any unintended hierarchy or urgency is perceived.',
     prompt: 'What did this sound suggest to you most strongly?',
     options: [
-      'Different category / type of object',
-      'Higher importance, priority, or ranking',
-      'Direction, flow, or movement',
-      'Greater quantity, magnitude, or size',
-      'No particular meaning',
-      'Other interpretation'
+      { id: 'diff_category', label: 'Different category / type of object' },
+      { id: 'high_priority', label: 'Higher importance, priority, or ranking' },
+      { id: 'direction_flow', label: 'Direction, flow, or movement' },
+      { id: 'greater_quantity', label: 'Greater quantity, magnitude, or size' },
+      { id: 'no_meaning', label: 'No particular meaning' },
+      { id: 'other', label: 'Other interpretation' }
     ],
     soundStimulus: {
       type: 'single_shape',
       shape1: 'diamond'
     },
     visualStimulus: {
-      nodes: [{ id: 'D', label: 'Diamond Node', shape: 'diamond', x: 140, y: 80 }],
+      nodes: [{ id: 'D', label: 'D', shape: 'diamond', x: 140, y: 80 }],
       edges: []
     },
     supportsPerceivedMeaning: true

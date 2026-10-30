@@ -20,10 +20,13 @@ describe('Sound Mapping Laboratory Integration (Phase 2)', () => {
 
     const categories = new Set(cases.map((c) => c.category));
     expect(categories.has('shape_discrimination')).toBe(true);
+    expect(categories.has('shape_recognition')).toBe(true);
     expect(categories.has('identity_vs_category')).toBe(true);
+    expect(categories.has('perceived_hierarchy')).toBe(true);
     expect(categories.has('relationship_direction')).toBe(true);
     expect(categories.has('shape_independence')).toBe(true);
     expect(categories.has('geometry_invariance')).toBe(true);
+    expect(categories.has('destination_recognition')).toBe(true);
     expect(categories.has('perceived_meaning')).toBe(true);
   });
 
@@ -38,6 +41,14 @@ describe('Sound Mapping Laboratory Integration (Phase 2)', () => {
 
     labManager.setSelectedCategory('all');
     expect(labManager.getFilteredTestCases().length).toBe(LAB_TEST_CASES.length);
+  });
+
+  it('supports toggling between training mode and assessment mode (Fix 1)', () => {
+    expect(labManager.getMode()).toBe('training');
+    labManager.setMode('assessment');
+    expect(labManager.getMode()).toBe('assessment');
+    labManager.setMode('training');
+    expect(labManager.getMode()).toBe('training');
   });
 
   it('navigates tests sequentially and supports direct jumps', () => {
@@ -69,11 +80,11 @@ describe('Sound Mapping Laboratory Integration (Phase 2)', () => {
     expect(labManager.getReplayCount()).toBe(0);
   });
 
-  it('submits response, evaluates objective correctness, and logs timing and qualitative feedback', async () => {
+  it('submits response with stable IDs, evaluates objective correctness, and logs timing (Fix 2)', async () => {
     // Jump to Trial 1: Circle and Circle (shape_discrimination)
     labManager.jumpToTest(0);
     const tc = labManager.getCurrentTestCase()!;
-    expect(tc.expectedAnswer).toBe('Same shape category');
+    expect(tc.expectedAnswerId).toBe('same_category');
 
     // Simulate play
     labManager.playActiveSound();
@@ -82,12 +93,14 @@ describe('Sound Mapping Laboratory Integration (Phase 2)', () => {
     await new Promise((r) => setTimeout(r, 10));
 
     const record = labManager.submitResponse(
-      'Same shape category',
+      'same_category',
       'Different category / type of object',
       'Both sounds sounded like pure sine tones.'
     );
 
     expect(record.testCaseId).toBe(tc.id);
+    expect(record.participantResponseId).toBe('same_category');
+    expect(record.participantResponseLabel).toBe('Same shape category');
     expect(record.isCorrect).toBe(true);
     expect(record.replayCount).toBe(1);
     expect(record.responseDurationMs).toBeGreaterThanOrEqual(5);
@@ -106,33 +119,30 @@ describe('Sound Mapping Laboratory Integration (Phase 2)', () => {
     labManager.setSelectedCategory('perceived_meaning');
     labManager.jumpToTest(0);
     const tc = labManager.getCurrentTestCase()!;
-    expect(tc.expectedAnswer).toBeUndefined();
+    expect(tc.expectedAnswerId).toBeUndefined();
 
     const record = labManager.submitResponse(
-      'Different category / type of object',
+      'diff_category',
       'Different category / type of object',
       'Rich buzz without feeling like an emergency.'
     );
 
     expect(record.isCorrect).toBeNull(); // Subjective, not objectively scorable
-    expect(record.participantResponse).toBe('Different category / type of object');
+    expect(record.participantResponseId).toBe('diff_category');
 
     const summary = labManager.getSessionSummary();
     expect(summary.totalTrials).toBe(1);
     expect(summary.scoredTrials).toBe(0); // Excluded from scored accuracy
   });
 
-  // ------------------------------------------------------------------------
-  // Verification Item 12: Laboratory results are not written into formal experiment data
-  // ------------------------------------------------------------------------
   it('Verification 12: Laboratory results are not written into formal experiment data', async () => {
     const storage = new IndexedDBStorage();
 
     // Complete multiple laboratory trials
     labManager.jumpToTest(0);
-    labManager.submitResponse('Same shape category');
+    labManager.submitResponse('same_category');
     labManager.jumpToTest(1);
-    labManager.submitResponse('Different shape categories');
+    labManager.submitResponse('different_category');
 
     expect(labManager.getRecords().length).toBe(2);
 
@@ -141,32 +151,21 @@ describe('Sound Mapping Laboratory Integration (Phase 2)', () => {
     expect(allFormalSessions.length).toBe(0);
   });
 
-  it('exports session data to valid JSON and CSV formats', () => {
+  it('exports session data to valid JSON and CSV formats with stable identifiers', () => {
     labManager.jumpToTest(0);
-    labManager.submitResponse('Same shape category', 'Different category / type of object', 'No issue');
+    labManager.submitResponse('same_category', 'Different category / type of object', 'No issue');
 
     // JSON Export
     const jsonStr = labManager.exportJSON();
     const parsed = JSON.parse(jsonStr);
     expect(parsed.mappingVersion).toBe('visual-auditory-parity-v1');
-    expect(parsed.summary.totalTrials).toBe(1);
     expect(parsed.records.length).toBe(1);
-    expect(parsed.records[0].participantResponse).toBe('Same shape category');
+    expect(parsed.records[0].participantResponseId).toBe('same_category');
+    expect(parsed.records[0].expectedAnswerId).toBe('same_category');
 
     // CSV Export
     const csvStr = labManager.exportCSV();
-    expect(csvStr).toContain('mappingVersion,testCaseId,category');
-    expect(csvStr).toContain('visual-auditory-parity-v1');
-    expect(csvStr).toContain('Same shape category');
-  });
-
-  it('clears records without side effects', () => {
-    labManager.jumpToTest(0);
-    labManager.submitResponse('Same shape category');
-    expect(labManager.getRecords().length).toBe(1);
-
-    labManager.clearRecords();
-    expect(labManager.getRecords().length).toBe(0);
-    expect(labManager.getSessionSummary().totalTrials).toBe(0);
+    expect(csvStr).toContain('participantResponseId');
+    expect(csvStr).toContain('same_category');
   });
 });

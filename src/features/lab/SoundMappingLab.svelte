@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { LabManager } from '../../domain/lab/LabManager.js';
-  import type { LabTestCase, LabTestCategory } from '../../domain/lab/types.js';
+  import type { LabTestCase, LabTestCategory, LabMode } from '../../domain/lab/types.js';
   import type { ParitySonificationEngine } from '../../audio/parity/ParitySonificationEngine.js';
   import type { NodeShape } from '../../domain/presentation/types.js';
   import VisualShapeRenderer from './VisualShapeRenderer.svelte';
@@ -20,14 +20,17 @@
   let currentTestIndex = $state(labManager.getCurrentTestIndex());
   let totalTests = $state(labManager.getTotalTests());
   let replayCount = $state(0);
+  let currentMode = $state<LabMode>(labManager.getMode());
 
-  // Form inputs
-  let selectedOption = $state<string>('');
+  // Form draft state isolated from replay/audio sync
+  let lastLoadedTestId = $state<string | null>(null);
+  let selectedOptionId = $state<string>('');
   let selectedPerceivedMeaning = $state<string>('');
   let qualitativeFeedback = $state<string>('');
-
+  let isSubmitted = $state<boolean>(false);
   let submissionMessage = $state<string>('');
   let submissionSuccess = $state<boolean | null>(null);
+  let isPlayingAudio = $state<boolean>(false);
 
   // Summary & records
   let records = $state(labManager.getRecords());
@@ -41,27 +44,31 @@
     replayCount = labManager.getReplayCount();
     records = labManager.getRecords();
     summary = labManager.getSessionSummary();
+    currentMode = labManager.getMode();
 
-    // Check if test was already answered
-    if (currentTest) {
+    // Fix 3: ONLY update or reset form draft state when the test case actually changes
+    if (currentTest && currentTest.id !== lastLoadedTestId) {
+      lastLoadedTestId = currentTest.id;
       const existing = labManager.getRecordForTestCase(currentTest.id);
       if (existing) {
-        selectedOption = existing.participantResponse;
+        selectedOptionId = existing.participantResponseId;
         selectedPerceivedMeaning = existing.perceivedMeaning || '';
         qualitativeFeedback = existing.qualitativeFeedback || '';
         submissionSuccess = existing.isCorrect;
+        isSubmitted = true;
         submissionMessage =
           existing.isCorrect === null
             ? 'Response recorded.'
             : existing.isCorrect
               ? 'Correct answer recorded.'
-              : `Answer recorded. Expected: "${existing.expectedAnswer}".`;
+              : `Answer recorded. Expected: "${existing.expectedAnswerId}".`;
       } else {
-        selectedOption = '';
+        selectedOptionId = '';
         selectedPerceivedMeaning = '';
         qualitativeFeedback = '';
         submissionMessage = '';
         submissionSuccess = null;
+        isSubmitted = false;
       }
     }
   }
@@ -72,36 +79,53 @@
     return () => unsub();
   });
 
+  function handleModeChange(mode: LabMode) {
+    audioEngine.cancelPlayback();
+    labManager.setMode(mode);
+    currentMode = mode;
+    announce(`Switched to ${mode === 'training' ? 'Training Practice' : 'Blinded Assessment'} mode.`);
+  }
+
   function handleCategoryChange(cat: LabTestCategory | 'all') {
     audioEngine.cancelPlayback();
     labManager.setSelectedCategory(cat);
     announce(`Switched to category: ${cat.replace(/_/g, ' ')}`);
   }
 
+  // Fix 4: Do not emit live-region speech when triggering playback to prevent masking test stimulus
   function handlePlaySound() {
+    isPlayingAudio = true;
     labManager.playActiveSound();
-    announce(`Playing sound for ${currentTest?.title}. Replay count: ${labManager.getReplayCount()}`);
+    setTimeout(() => {
+      isPlayingAudio = false;
+    }, 400);
+  }
+
+  function handlePlaySpecificShape(shape: NodeShape) {
+    isPlayingAudio = true;
+    labManager.playSpecificShape(shape);
+    setTimeout(() => {
+      isPlayingAudio = false;
+    }, 400);
   }
 
   function handlePlayShapeLegend(shape: NodeShape) {
     audioEngine.cancelPlayback();
     audioEngine.playNodeShape(shape);
-    announce(`Playing candidate sound for ${shape}`);
   }
 
   function handlePlayDirectionLegend(dir: 'outgoing' | 'incoming') {
     audioEngine.cancelPlayback();
     audioEngine.playRelationshipDirection(dir);
-    announce(`Playing ${dir} relationship sound`);
   }
 
   function handleStopAudio() {
     audioEngine.cancelPlayback();
-    announce('Audio playback stopped');
+    isPlayingAudio = false;
   }
 
   function handleSubmit() {
-    if (!selectedOption) {
+    if (!selectedOptionId) {
       submissionMessage = 'Please select an answer option before submitting.';
       submissionSuccess = false;
       announce(submissionMessage, 'assertive');
@@ -109,16 +133,19 @@
     }
 
     const record = labManager.submitResponse(
-      selectedOption,
+      selectedOptionId,
       selectedPerceivedMeaning || undefined,
       qualitativeFeedback || undefined
     );
 
+    isSubmitted = true;
     submissionSuccess = record.isCorrect;
+
     if (record.isCorrect === true) {
       submissionMessage = 'Response recorded: Correct!';
     } else if (record.isCorrect === false) {
-      submissionMessage = `Response recorded. Expected: "${record.expectedAnswer}".`;
+      const expOpt = currentTest?.options.find((o) => o.id === record.expectedAnswerId);
+      submissionMessage = `Response recorded. Expected: "${expOpt ? expOpt.label : record.expectedAnswerId}".`;
     } else {
       submissionMessage = 'Perceptual observation recorded.';
     }
@@ -188,97 +215,123 @@
       Interactive exploratory environment for evaluating whether users perceive proposed shape timbres,
       direction intervals, and connection invariance prior to formal study trials.
     </p>
+
+    <!-- Lab Mode Switcher (Training vs Blinded Assessment) -->
+    <div class="mode-switcher-container card" role="toolbar" aria-label="Laboratory Operating Mode">
+      <span class="mode-label"><strong>Operating Mode:</strong></span>
+      <div class="mode-buttons">
+        <button
+          class={currentMode === 'training' ? 'primary small' : 'secondary small'}
+          onclick={() => handleModeChange('training')}
+          aria-pressed={currentMode === 'training'}
+        >
+          📖 Training & Practice Mode
+        </button>
+        <button
+          class={currentMode === 'assessment' ? 'primary small' : 'secondary small'}
+          onclick={() => handleModeChange('assessment')}
+          aria-pressed={currentMode === 'assessment'}
+        >
+          🎯 Blinded Assessment Mode
+        </button>
+      </div>
+      <p class="mode-caption">
+        {#if currentMode === 'training'}
+          Training mode explicitly associates shapes with candidate waveforms and reference guides.
+        {:else}
+          Blinded assessment mode hides answers and masks visual shapes during listening trials to evaluate genuine perception.
+        {/if}
+      </p>
+    </div>
+
     <div class="research-isolation-notice" role="note">
       <strong>Research Isolation:</strong> Laboratory trials are exploratory and session-scoped. Results are never
       mixed into formal A/B/C research experimental datasets.
     </div>
   </div>
 
-  <!-- Candidate Sound Reference Legend -->
-  <section class="card legend-card" aria-label="Candidate Sound Correspondence Legend">
-    <h3>Visual-Auditory Correspondence Legend</h3>
-    <p class="legend-note">
-      All three shapes use the identical reference pitch (300 Hz) and duration (0.20s). Gains are psychoacoustically
-      calibrated to match perceived loudness.
-    </p>
+  <!-- Candidate Sound Reference Legend (Visible in Training mode or collapsible) -->
+  {#if currentMode === 'training'}
+    <section class="card legend-card" aria-label="Candidate Sound Correspondence Legend">
+      <h3>Visual-Auditory Correspondence Reference (Training)</h3>
+      <p class="legend-note">
+        All candidate shapes share the identical reference pitch (300 Hz) and duration (0.20s). Initial candidate gains
+        reflect spectral energy estimation (sine: 0.28, triangle: 0.22, softened square: 0.14) subject to empirical validation.
+      </p>
 
-    <div class="legend-grid">
-      <div class="legend-item">
-        <div class="legend-badge circle-badge">Circle</div>
-        <div class="legend-detail">
-          <strong>Sine Wave (300 Hz)</strong>
-          <span class="subtext">Smooth, pure harmonic content</span>
+      <div class="legend-grid">
+        <div class="legend-item">
+          <div class="legend-badge circle-badge">Circle</div>
+          <div class="legend-detail">
+            <strong>Sine Wave (300 Hz)</strong>
+            <span class="subtext">Smooth, pure harmonic content</span>
+          </div>
+          <button
+            class="secondary small"
+            onclick={() => handlePlayShapeLegend('circle')}
+          >
+            Play Circle
+          </button>
         </div>
-        <button
-          class="secondary small"
-          onclick={() => handlePlayShapeLegend('circle')}
-          aria-label="Play Circle (Sine tone)"
-        >
-          Play Circle
-        </button>
-      </div>
 
-      <div class="legend-item">
-        <div class="legend-badge rectangle-badge">Rectangle</div>
-        <div class="legend-detail">
-          <strong>Triangle Wave (300 Hz)</strong>
-          <span class="subtext">Mellow odd-harmonic timbre</span>
+        <div class="legend-item">
+          <div class="legend-badge rectangle-badge">Rectangle</div>
+          <div class="legend-detail">
+            <strong>Triangle Wave (300 Hz)</strong>
+            <span class="subtext">Mellow odd-harmonic timbre</span>
+          </div>
+          <button
+            class="secondary small"
+            onclick={() => handlePlayShapeLegend('rectangle')}
+          >
+            Play Rectangle
+          </button>
         </div>
-        <button
-          class="secondary small"
-          onclick={() => handlePlayShapeLegend('rectangle')}
-          aria-label="Play Rectangle (Triangle tone)"
-        >
-          Play Rectangle
-        </button>
-      </div>
 
-      <div class="legend-item">
-        <div class="legend-badge diamond-badge">Diamond</div>
-        <div class="legend-detail">
-          <strong>Softened Square Wave (300 Hz)</strong>
-          <span class="subtext">Attenuated gain (0.14) & gentle envelope</span>
+        <div class="legend-item">
+          <div class="legend-badge diamond-badge">Diamond</div>
+          <div class="legend-detail">
+            <strong>Softened Square Wave (300 Hz)</strong>
+            <span class="subtext">Initial candidate gain (0.14) & gentle attack</span>
+          </div>
+          <button
+            class="secondary small"
+            onclick={() => handlePlayShapeLegend('diamond')}
+          >
+            Play Diamond
+          </button>
         </div>
-        <button
-          class="secondary small"
-          onclick={() => handlePlayShapeLegend('diamond')}
-          aria-label="Play Diamond (Softened square tone)"
-        >
-          Play Diamond
-        </button>
-      </div>
 
-      <div class="legend-item">
-        <div class="legend-badge direction-badge">Outgoing</div>
-        <div class="legend-detail">
-          <strong>Forward Step (360 → 440 Hz)</strong>
-          <span class="subtext">Direction cue invariant to node shape</span>
+        <div class="legend-item">
+          <div class="legend-badge direction-badge">Outgoing</div>
+          <div class="legend-detail">
+            <strong>Forward Step (360 → 440 Hz)</strong>
+            <span class="subtext">Direction cue invariant to node shape</span>
+          </div>
+          <button
+            class="secondary small"
+            onclick={() => handlePlayDirectionLegend('outgoing')}
+          >
+            Play Outgoing
+          </button>
         </div>
-        <button
-          class="secondary small"
-          onclick={() => handlePlayDirectionLegend('outgoing')}
-          aria-label="Play Outgoing (Forward step)"
-        >
-          Play Outgoing
-        </button>
-      </div>
 
-      <div class="legend-item">
-        <div class="legend-badge direction-badge">Incoming</div>
-        <div class="legend-detail">
-          <strong>Inward Step (440 → 360 Hz)</strong>
-          <span class="subtext">Inverted interval for arrival</span>
+        <div class="legend-item">
+          <div class="legend-badge direction-badge">Incoming</div>
+          <div class="legend-detail">
+            <strong>Inward Step (440 → 360 Hz)</strong>
+            <span class="subtext">Inverted interval for arrival</span>
+          </div>
+          <button
+            class="secondary small"
+            onclick={() => handlePlayDirectionLegend('incoming')}
+          >
+            Play Incoming
+          </button>
         </div>
-        <button
-          class="secondary small"
-          onclick={() => handlePlayDirectionLegend('incoming')}
-          aria-label="Play Incoming (Inward step)"
-        >
-          Play Incoming
-        </button>
       </div>
-    </div>
-  </section>
+    </section>
+  {/if}
 
   <!-- Category Filter Bar -->
   <nav class="category-nav" aria-label="Laboratory Test Categories">
@@ -297,39 +350,60 @@
       A. Shape Discrimination
     </button>
     <button
+      class={currentCategory === 'shape_recognition' ? 'cat-btn active' : 'cat-btn'}
+      onclick={() => handleCategoryChange('shape_recognition')}
+      aria-current={currentCategory === 'shape_recognition' ? 'true' : undefined}
+    >
+      B. Shape Recognition
+    </button>
+    <button
       class={currentCategory === 'identity_vs_category' ? 'cat-btn active' : 'cat-btn'}
       onclick={() => handleCategoryChange('identity_vs_category')}
       aria-current={currentCategory === 'identity_vs_category' ? 'true' : undefined}
     >
-      B. Identity vs Category
+      C. Identity vs Category
+    </button>
+    <button
+      class={currentCategory === 'perceived_hierarchy' ? 'cat-btn active' : 'cat-btn'}
+      onclick={() => handleCategoryChange('perceived_hierarchy')}
+      aria-current={currentCategory === 'perceived_hierarchy' ? 'true' : undefined}
+    >
+      D. Perceived Hierarchy
     </button>
     <button
       class={currentCategory === 'relationship_direction' ? 'cat-btn active' : 'cat-btn'}
       onclick={() => handleCategoryChange('relationship_direction')}
       aria-current={currentCategory === 'relationship_direction' ? 'true' : undefined}
     >
-      C. Relationship & Direction
+      E. Relationship & Direction
     </button>
     <button
       class={currentCategory === 'shape_independence' ? 'cat-btn active' : 'cat-btn'}
       onclick={() => handleCategoryChange('shape_independence')}
       aria-current={currentCategory === 'shape_independence' ? 'true' : undefined}
     >
-      D. Shape Independence
+      F. Shape Independence
     </button>
     <button
       class={currentCategory === 'geometry_invariance' ? 'cat-btn active' : 'cat-btn'}
       onclick={() => handleCategoryChange('geometry_invariance')}
       aria-current={currentCategory === 'geometry_invariance' ? 'true' : undefined}
     >
-      E. Geometry Invariance
+      G. Geometry Invariance
+    </button>
+    <button
+      class={currentCategory === 'destination_recognition' ? 'cat-btn active' : 'cat-btn'}
+      onclick={() => handleCategoryChange('destination_recognition')}
+      aria-current={currentCategory === 'destination_recognition' ? 'true' : undefined}
+    >
+      H. Destination Recognition
     </button>
     <button
       class={currentCategory === 'perceived_meaning' ? 'cat-btn active' : 'cat-btn'}
       onclick={() => handleCategoryChange('perceived_meaning')}
       aria-current={currentCategory === 'perceived_meaning' ? 'true' : undefined}
     >
-      F. Perceived Meaning
+      I. Perceived Meaning
     </button>
   </nav>
 
@@ -338,26 +412,37 @@
     <div class="active-test-container">
       <div class="test-header">
         <span class="test-progress">Test {currentTestIndex + 1} of {totalTests}</span>
-        <h3 id="test-title">{currentTest.title}</h3>
+        <h3 id="test-title">
+          {#if currentMode === 'assessment'}
+            Trial {currentTestIndex + 1}: {currentTest.category.replace(/_/g, ' ')}
+          {:else}
+            {currentTest.title}
+          {/if}
+        </h3>
       </div>
 
       <p class="test-instructions">{currentTest.instructions}</p>
 
-      <!-- Visual Renderer Stimulus -->
+      <!-- Visual Renderer Stimulus (Blinded during assessment until answered) -->
       {#if currentTest.visualStimulus}
         <VisualShapeRenderer
           nodes={currentTest.visualStimulus.nodes}
           edges={currentTest.visualStimulus.edges}
           decorativeNote={currentTest.visualStimulus.decorativeNote}
+          blinded={currentMode === 'assessment' && !isSubmitted && Boolean(currentTest.visualStimulus.blindInAssessment)}
         />
       {/if}
 
-      <!-- Auditory Playback Controls -->
-      <div class="audio-control-bar" role="toolbar" aria-label="Auditory Test Controls">
+      <!-- Auditory Playback Controls (Neutral labels in assessment to eliminate answer leakage) -->
+      <div
+        class="audio-control-bar"
+        role="toolbar"
+        aria-label="Auditory Test Controls"
+        aria-busy={isPlayingAudio ? 'true' : 'false'}
+      >
         <button
           class="primary play-btn"
           onclick={handlePlaySound}
-          aria-label={`Play Test Sound for ${currentTest.title}`}
         >
           ▶ Play Test Sound
         </button>
@@ -367,28 +452,35 @@
             class="secondary"
             onclick={() => {
               if (currentTest?.soundStimulus.shape1) {
-                labManager.playSpecificShape(currentTest.soundStimulus.shape1);
+                handlePlaySpecificShape(currentTest.soundStimulus.shape1);
               }
             }}
           >
-            Play Sound 1 ({currentTest.soundStimulus.shape1})
+            {#if currentMode === 'assessment'}
+              Play Sound 1
+            {:else}
+              Play Sound 1 ({currentTest.soundStimulus.shape1})
+            {/if}
           </button>
           <button
             class="secondary"
             onclick={() => {
               if (currentTest?.soundStimulus.shape2) {
-                labManager.playSpecificShape(currentTest.soundStimulus.shape2);
+                handlePlaySpecificShape(currentTest.soundStimulus.shape2);
               }
             }}
           >
-            Play Sound 2 ({currentTest.soundStimulus.shape2})
+            {#if currentMode === 'assessment'}
+              Play Sound 2
+            {:else}
+              Play Sound 2 ({currentTest.soundStimulus.shape2})
+            {/if}
           </button>
         {/if}
 
         <button
           class="secondary danger-btn"
           onclick={handleStopAudio}
-          aria-label="Stop Audio playback"
         >
           ⏹ Stop Audio
         </button>
@@ -398,22 +490,21 @@
         </span>
       </div>
 
-      <!-- Question and Answer Form -->
+      <!-- Question and Answer Form (Bound to stable IDs) -->
       <form class="response-form card" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
         <fieldset class="options-fieldset">
           <legend class="prompt-legend">{currentTest.prompt}</legend>
 
           <div class="options-group" role="radiogroup" aria-labelledby="test-title">
             {#each currentTest.options as option}
-              <label class="option-label" class:selected={selectedOption === option}>
+              <label class="option-label" class:selected={selectedOptionId === option.id}>
                 <input
                   type="radio"
                   name="test-option"
-                  value={option}
-                  bind:group={selectedOption}
-                  aria-label={option}
+                  value={option.id}
+                  bind:group={selectedOptionId}
                 />
-                <span class="option-text">{option}</span>
+                <span class="option-text">{option.label}</span>
               </label>
             {/each}
           </div>
@@ -550,6 +641,7 @@
           <thead>
             <tr>
               <th scope="col">Test ID</th>
+              <th scope="col">Mode</th>
               <th scope="col">Category</th>
               <th scope="col">Response</th>
               <th scope="col">Status</th>
@@ -562,8 +654,9 @@
             {#each records as r}
               <tr>
                 <td><code>{r.testCaseId}</code></td>
+                <td><span class="badge mode-tag">{r.mode}</span></td>
                 <td>{r.category.replace(/_/g, ' ')}</td>
-                <td>{r.participantResponse}</td>
+                <td>{r.participantResponseLabel}</td>
                 <td>
                   {#if r.isCorrect === true}
                     <span class="badge success">Correct</span>
@@ -600,50 +693,85 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    flex-wrap: wrap;
+    margin-bottom: 8px;
   }
 
   h2 {
     font-size: 24px;
     font-weight: 700;
+    color: var(--color-primary);
     margin: 0;
   }
 
   .version-badge {
-    background: rgba(56, 189, 248, 0.15);
+    background: #0f172a;
     border: 1px solid var(--color-primary);
     color: var(--color-primary);
-    font-size: 13px;
+    font-size: 12px;
+    font-family: monospace;
     padding: 3px 8px;
     border-radius: 4px;
   }
 
   .lead-text {
-    color: var(--color-text-muted);
     font-size: 15px;
-    margin: 8px 0;
+    color: var(--color-text-muted);
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  .mode-switcher-container {
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .mode-buttons {
+    display: flex;
+    gap: 12px;
+  }
+
+  .mode-caption {
+    font-size: 13px;
+    color: #94a3b8;
+    margin: 0;
+  }
+
+  .mode-tag {
+    background: #1e293b;
+    border: 1px solid #475569;
+    color: #cbd5e1;
+    font-size: 11px;
+    text-transform: uppercase;
   }
 
   .research-isolation-notice {
-    background: #172554;
-    border-left: 4px solid #3b82f6;
-    padding: 8px 12px;
-    color: #bfdbfe;
+    background: rgba(30, 41, 59, 0.7);
+    border-left: 4px solid var(--color-primary);
+    padding: 10px 14px;
     font-size: 13px;
+    color: #cbd5e1;
     border-radius: 0 4px 4px 0;
   }
 
-  .card {
-    background-color: var(--color-surface);
+  .legend-card {
+    background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: 8px;
-    padding: 20px;
+    padding: 18px;
     margin-bottom: 24px;
   }
 
   .legend-card h3 {
     margin-top: 0;
-    font-size: 18px;
+    margin-bottom: 6px;
+    font-size: 16px;
+    color: #f8fafc;
   }
 
   .legend-note {
@@ -659,10 +787,10 @@
   }
 
   .legend-item {
-    background: #0b1120;
-    border: 1px solid var(--color-border);
+    background: #0f172a;
+    border: 1px solid #334155;
     border-radius: 6px;
-    padding: 12px;
+    padding: 10px;
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -671,155 +799,169 @@
   .legend-badge {
     font-size: 12px;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 2px 6px;
-    border-radius: 3px;
-    width: fit-content;
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    align-self: flex-start;
   }
 
   .circle-badge {
-    background: rgba(56, 189, 248, 0.2);
-    color: #38bdf8;
+    background: #0c4a6e;
     border: 1px solid #38bdf8;
+    color: #f0f9ff;
   }
 
   .rectangle-badge {
-    background: rgba(251, 191, 36, 0.2);
-    color: #fbbf24;
+    background: #713f12;
     border: 1px solid #fbbf24;
+    color: #fefce8;
   }
 
   .diamond-badge {
-    background: rgba(167, 139, 250, 0.2);
-    color: #a78bfa;
-    border: 1px solid #a78bfa;
+    background: #881337;
+    border: 1px solid #f43f5e;
+    color: #fff1f2;
   }
 
   .direction-badge {
-    background: rgba(52, 211, 153, 0.2);
-    color: #34d399;
-    border: 1px solid #34d399;
+    background: #581c87;
+    border: 1px solid #a855f7;
+    color: #faf5ff;
   }
 
-  .legend-detail {
-    display: flex;
-    flex-direction: column;
+  .legend-detail strong {
+    display: block;
     font-size: 13px;
+    color: #f1f5f9;
   }
 
-  .subtext {
+  .legend-detail .subtext {
+    display: block;
     font-size: 11px;
-    color: var(--color-text-muted);
+    color: #94a3b8;
   }
 
   .category-nav {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 20px;
+    gap: 8px;
+    margin-bottom: 24px;
   }
 
   .cat-btn {
-    background: transparent;
+    background: #0f172a;
     border: 1px solid var(--color-border);
     color: var(--color-text-muted);
-    padding: 6px 12px;
+    padding: 8px 14px;
+    border-radius: 6px;
     font-size: 13px;
-    border-radius: 4px;
+    font-weight: 600;
     cursor: pointer;
+    transition: all 0.15s ease;
   }
 
   .cat-btn:hover {
-    color: var(--color-text);
-    background: var(--color-surface-hover);
+    border-color: var(--color-primary);
+    color: #f8fafc;
   }
 
   .cat-btn.active {
-    color: var(--color-primary);
-    background: rgba(56, 189, 248, 0.12);
+    background: var(--color-primary);
+    color: #0f172a;
     border-color: var(--color-primary);
-    font-weight: 600;
   }
 
   .active-test-container {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    padding: 24px;
-    margin-bottom: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 32px;
   }
 
   .test-header {
     display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: 8px;
-    border-bottom: 1px solid var(--color-border);
-    padding-bottom: 12px;
-    margin-bottom: 16px;
+    flex-direction: column;
+    gap: 4px;
   }
 
   .test-progress {
-    font-size: 13px;
+    font-size: 12px;
+    font-weight: 700;
     color: var(--color-primary);
-    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
 
-  h3 {
-    margin: 0;
+  #test-title {
     font-size: 20px;
+    font-weight: 700;
+    color: #f8fafc;
+    margin: 0;
   }
 
   .test-instructions {
-    font-size: 15px;
-    color: var(--color-text);
+    font-size: 14px;
+    color: #cbd5e1;
+    margin: 0;
     line-height: 1.5;
-    margin-bottom: 16px;
   }
 
   .audio-control-bar {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
-    background: #0b1120;
+    background: #0f172a;
     border: 1px solid var(--color-border);
+    border-radius: 8px;
     padding: 12px 16px;
-    border-radius: 6px;
-    margin: 16px 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
   }
 
   .play-btn {
-    font-weight: 600;
-    padding: 8px 16px;
+    font-weight: 700;
+  }
+
+  .danger-btn {
+    background: #2a1b1b;
+    color: #f87171;
+    border-color: #ef4444;
+  }
+
+  .danger-btn:hover {
+    background: #ef4444;
+    color: #ffffff;
   }
 
   .replay-badge {
     margin-left: auto;
-    font-size: 13px;
-    color: var(--color-text-muted);
+    background: #1e293b;
+    color: #94a3b8;
+    border: 1px solid #334155;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
   }
 
   .response-form {
-    background: #0f172a;
-    border-radius: 6px;
     padding: 20px;
-    margin: 16px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
   }
 
   .options-fieldset {
     border: none;
     padding: 0;
-    margin: 0 0 16px 0;
+    margin: 0;
   }
 
   .prompt-legend {
     font-size: 16px;
-    font-weight: 600;
-    color: var(--color-text);
-    margin-bottom: 12px;
+    font-weight: 700;
+    color: #f8fafc;
+    margin-bottom: 14px;
+    line-height: 1.4;
   }
 
   .options-group {
@@ -832,121 +974,126 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 10px 14px;
-    background: #1e293b;
-    border: 1px solid var(--color-border);
+    background: #0f172a;
+    border: 1px solid #334155;
     border-radius: 6px;
+    padding: 12px 16px;
     cursor: pointer;
-    font-size: 14px;
     transition: all 0.15s ease;
   }
 
   .option-label:hover {
     border-color: var(--color-primary);
-    background: #243248;
+    background: #132039;
   }
 
   .option-label.selected {
     border-color: var(--color-primary);
     background: rgba(56, 189, 248, 0.12);
-    font-weight: 600;
   }
 
-  .option-label input[type='radio'] {
-    width: 18px;
-    height: 18px;
-    cursor: pointer;
+  .option-text {
+    font-size: 14px;
+    color: #f8fafc;
+    font-weight: 500;
   }
 
   .perceived-meaning-section {
     border-top: 1px solid var(--color-border);
     padding-top: 16px;
-    margin-top: 16px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
   }
 
   .section-label {
     font-size: 13px;
     font-weight: 600;
-    color: var(--color-text-muted);
+    color: #cbd5e1;
   }
 
   .form-select,
   .form-textarea {
-    background: #1e293b;
+    background: #0f172a;
     border: 1px solid var(--color-border);
-    border-radius: 4px;
-    color: var(--color-text);
+    color: #f8fafc;
+    border-radius: 6px;
     padding: 8px 12px;
-    font-size: 14px;
+    font-family: inherit;
+    font-size: 13px;
   }
 
-  .form-textarea {
-    resize: vertical;
+  .form-select:focus,
+  .form-textarea:focus {
+    border-color: var(--color-primary);
+    outline: none;
   }
 
   .form-actions {
-    margin-top: 16px;
+    display: flex;
+    justify-content: flex-end;
   }
 
   .submit-btn {
-    padding: 8px 18px;
-    font-weight: 600;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 700;
   }
 
   .submission-feedback {
-    margin-top: 14px;
-    padding: 10px 14px;
     border-radius: 6px;
+    padding: 12px 16px;
     font-size: 14px;
     font-weight: 600;
   }
 
   .submission-feedback.success {
-    background: #064e3b;
-    color: #6ee7b7;
-    border: 1px solid #10b981;
+    background: rgba(34, 197, 94, 0.15);
+    border: 1px solid #22c55e;
+    color: #4ade80;
   }
 
   .submission-feedback.error {
-    background: #7f1d1d;
-    color: #fca5a5;
+    background: rgba(239, 68, 68, 0.15);
     border: 1px solid #ef4444;
+    color: #f87171;
   }
 
   .submission-feedback.neutral {
-    background: #1e293b;
-    color: #e2e8f0;
-    border: 1px solid #475569;
+    background: rgba(56, 189, 248, 0.15);
+    border: 1px solid #38bdf8;
+    color: #38bdf8;
   }
 
   .test-pagination {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 20px;
-    padding-top: 16px;
-    border-top: 1px solid var(--color-border);
+    padding: 12px 0;
   }
 
   .pagination-info {
     font-size: 13px;
     color: var(--color-text-muted);
+    font-weight: 600;
   }
 
   .results-card {
-    margin-top: 32px;
+    padding: 20px;
+    margin-top: 16px;
   }
 
   .results-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
     margin-bottom: 16px;
+  }
+
+  .results-header h3 {
+    margin: 0;
+    font-size: 18px;
+    color: #f8fafc;
   }
 
   .export-btn-group {
@@ -962,17 +1109,18 @@
   }
 
   .metric-box {
-    background: #0b1120;
-    border: 1px solid var(--color-border);
+    background: #0f172a;
+    border: 1px solid #334155;
     border-radius: 6px;
     padding: 12px;
+    text-align: center;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    gap: 4px;
   }
 
   .metric-value {
-    font-size: 20px;
+    font-size: 22px;
     font-weight: 700;
     color: var(--color-primary);
   }
@@ -980,8 +1128,6 @@
   .metric-label {
     font-size: 12px;
     color: var(--color-text-muted);
-    text-align: center;
-    margin-top: 4px;
   }
 
   .table-container {
@@ -996,68 +1142,46 @@
 
   .records-table th,
   .records-table td {
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--color-border);
+    padding: 10px 12px;
     text-align: left;
+    border-bottom: 1px solid var(--color-border);
   }
 
   .records-table th {
-    background: #0b1120;
-    color: var(--color-text-muted);
+    background: #0f172a;
+    color: var(--color-primary);
     font-weight: 600;
   }
 
   .badge.success {
-    background: #065f46;
-    color: #6ee7b7;
+    background: rgba(34, 197, 94, 0.2);
+    border: 1px solid #22c55e;
+    color: #4ade80;
     padding: 2px 6px;
-    border-radius: 3px;
+    border-radius: 4px;
   }
 
   .badge.error {
-    background: #991b1b;
-    color: #fca5a5;
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid #ef4444;
+    color: #f87171;
     padding: 2px 6px;
-    border-radius: 3px;
+    border-radius: 4px;
   }
 
   .badge.neutral {
-    background: #334155;
+    background: rgba(148, 163, 184, 0.2);
+    border: 1px solid #64748b;
     color: #cbd5e1;
     padding: 2px 6px;
-    border-radius: 3px;
+    border-radius: 4px;
   }
 
-  .empty-records-text {
+  .empty-records-text,
+  .empty-state p {
     color: var(--color-text-muted);
     font-size: 14px;
     text-align: center;
-    padding: 20px;
-  }
-
-  .small {
-    padding: 4px 10px;
-    font-size: 12px;
-  }
-
-  .danger-btn {
-    border-color: #f87171;
-    color: #f87171;
-  }
-
-  .danger-btn:hover {
-    background: rgba(248, 113, 113, 0.15);
-  }
-
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
+    margin: 20px 0;
   }
 </style>
