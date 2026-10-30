@@ -1,5 +1,9 @@
 # Sonification system design (version 0.1 proposal)
 
+## Normative governing rule
+
+**This document is subordinate to [visual–auditory semantic parity and screen-reader ownership of text](11-visual-auditory-parity-governing-rules.md).** For a given diagram, equal intrinsic non-text appearance requires equal intrinsic non-speech node cues; visually distinct shape/style categories require corresponding distinct auditory cues. Node and edge labels, graph titles/descriptions, annotations and other text are announced by the screen reader through semantic accessibility APIs, **not encoded into musical frequencies**. Differences in connectivity may change the edge enumeration without changing the intrinsic node sound. The legacy current implementation violates this because node IDs determine pitch; correct in a separately versioned mapping, without silently changing study conditions.
+
 ## Goal
 
 Turn *graph semantics* into interpretable, repeatable auditory events while allowing users to discover connectivity through action. A special sound saying “this is a cycle” during a cycle-identification trial would invalidate the test.
@@ -57,7 +61,7 @@ Even with identical frequencies, gains, and timings in software:
 
 ## Speech coordination
 
-Use semantic text for node/edge names; let NVDA read native controls when possible. A mode may enable Web Speech API, but avoid automatic duplicate announcements from both screen reader and browser TTS. Make text available independent of audio so participants can inspect what was conveyed.
+**Graph text belongs to the screen reader.** Provide semantic accessible labels for nodes, directed edges, edge labels, titles, descriptions, exact counts and annotations. NVDA must announce text through focus, inspection and appropriate live regions. Do not turn words or identifiers into distinctive non-speech oscillator notes. Do not use Web Speech API as a second narrator of graph text. Keep announcements concise, on demand, and aligned with information-exposure policy; avoid automatically reading the entire graph.
 
 ## Audio mapping provenance
 
